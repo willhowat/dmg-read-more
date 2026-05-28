@@ -1,0 +1,11 @@
+{
+    "name": "dmg/read-more",
+    "description": "A WordPress plugin providing a Read More Gutenberg block and WP-CLI search command",
+    "type": "wordpress-plugin",
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "classmap": ["includes/"]
+    }
+}
