@@ -1,0 +1,12 @@
+{
+	"name": "dmg-read-more",
+	"version": "1.0.0",
+	"private": true,
+	"scripts": {
+		"build": "wp-scripts build src/block/index.js",
+		"start": "wp-scripts start src/block/index.js"
+	},
+	"devDependencies": {
+		"@wordpress/scripts": "^30.0.0"
+	}
+}
