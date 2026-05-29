@@ -16,7 +16,6 @@
 }
 
 :where(.dmg-read-more a) {
-	/* color: inherit; */
 	color: var(--wp--preset--color--contrast, currentColor);
 	display: flex;
 	flex-direction: column;

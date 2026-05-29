@@ -32,8 +32,6 @@ const phpAllowedSlugs: string[] = window.dmgReadMore?.allowedPostTypes ?? [];
  *      restricts the list to those slugs.
  *   3. Applies the `dmg.readMore.postTypes` JS filter for further JS-side
  *      restriction or reordering.
- *   4. Falls back to DEFAULT_POST_TYPES (post + page) if the resolved list is
- *      empty — an empty list would make the search silently return no results.
  *
  * Initialises from DEFAULT_POST_TYPES so the block is usable immediately while
  * the fetch is in flight.
@@ -71,8 +69,8 @@ export function usePostTypes(): PostTypeConfig[] {
 				 * a subset of (or equal to) the PHP-allowed types. Use it to further
 				 * restrict, reorder, or augment the list from a JS-only context.
 				 *
-				 * Returning an empty array falls back to DEFAULT_POST_TYPES (post + page),
-				 * ensuring the search field always has something to query.
+				 * Returning an empty array is respected — use it to intentionally
+				 * disable the search field for unsupported post types.
 				 *
 				 * Example — exclude the Page post type:
 				 *   wp.hooks.addFilter(
@@ -89,11 +87,7 @@ export function usePostTypes(): PostTypeConfig[] {
 					types
 				) as PostTypeConfig[];
 
-				// Guard: if both filters drain the list, fall back to hardcoded defaults
-				// so the search field remains functional rather than silently broken.
-				setPostTypes(
-					filtered.length > 0 ? filtered : DEFAULT_POST_TYPES
-				);
+				setPostTypes( filtered );
 			} )
 			.catch( () => {
 				// REST API unavailable — silent fallback keeps the block usable.

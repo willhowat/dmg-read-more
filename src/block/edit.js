@@ -15,7 +15,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	const blockProps = useBlockProps( { className: 'dmg-read-more' } );
 
 	const removeSelectedPost = () => {
-		setAttributes( { postId: undefined, postTitle: '' } );
+		setAttributes( { postId: undefined, postTitle: '', postType: undefined } );
 	};
 
 	return (
