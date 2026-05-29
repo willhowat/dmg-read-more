@@ -3,16 +3,22 @@ import { __ } from '@wordpress/i18n';
 import { SearchControl } from '@wordpress/components';
 import { ResultsList } from './results-list';
 import type { ContentSearchProps } from './types';
-import { useContentSearch, DEFAULT_POST_TYPES } from '../../hooks/use-content-search';
+import { useContentSearch } from '../../hooks/use-content-search';
+import { usePostTypes } from '../../hooks/use-post-types';
 
 import { contentSearchStyles as S } from './styles';
 
 export function ContentSearch( {
-	postTypes = DEFAULT_POST_TYPES,
+	postTypes: postTypesProp,
 	resultsPerPage = 5,
 	selectedId,
 	onSelect,
 }: ContentSearchProps ) {
+	// Discover post types from the REST API, applying PHP and JS filters.
+	// An explicit postTypes prop (e.g. in tests or a parent override) takes
+	// precedence; otherwise the dynamically resolved list is used.
+	const discoveredTypes = usePostTypes();
+	const postTypes = postTypesProp !== undefined ? postTypesProp : discoveredTypes;
 	const skipEmptyQuery = selectedId !== undefined;
 
 	const {
