@@ -31,7 +31,9 @@ export function ResultItem( {
 				<span style={ S.title }>
 					{ result.title || __( '(no title)', 'dmg-read-more' ) }
 				</span>
-				<span style={ S.url }>{ displayUrl } (id: { result.id })</span>
+				<span style={ S.url }>
+					{ displayUrl } (id: { result.id })
+				</span>
 			</span>
 			<span style={ S.pill }>{ postTypeLabel }</span>
 		</button>
