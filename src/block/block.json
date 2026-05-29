@@ -11,6 +11,25 @@
 		},
 		"postTitle": {
 			"type": "string"
+		},
+		"postType": {
+			"type": "string"
+		}
+	},
+	"supports": {
+		"align": true,
+		"color": {
+			"background": true,
+			"link": true,
+			"text": true
+		},
+		"html": false,
+		"spacing": {
+			"padding": true,
+			"margin": true
+		},
+		"typography": {
+			"fontSize": true
 		}
 	},
 	"editorScript": "file:./index.js",
