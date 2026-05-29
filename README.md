@@ -23,7 +23,11 @@ Download or clone this repository into `wp-content/plugins/dmg-read-more/`.
 
 ### Block
 
-Search for **DMG Read More** in the block inserter. Use the sidebar panel to search for and select any published post. The block renders a `<p class="dmg-read-more">` element containing an anchor — intentionally unstyled to act as a theme integration point.
+Search for **DMG Read More** in the block inserter. Use the sidebar panel to search for and select any published post. The block renders a `<p class="dmg-read-more">` element containing an anchor.
+
+#### Styling
+
+The block comes with minimal styling to ensure a working out of the box experience. This is intentionally scope with 0 specificity to allow for easy theme overriding as required.
 
 ### WP-CLI
 
