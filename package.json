@@ -6,10 +6,18 @@
 		"build": "wp-scripts build",
 		"start": "wp-scripts start",
 		"lint:js": "wp-scripts lint-js",
-		"format": "wp-scripts format"
+		"format": "wp-scripts format",
+		"type-check": "tsc --noEmit"
 	},
 	"devDependencies": {
+		"@wordpress/api-fetch": "*",
+		"@wordpress/components": "*",
+		"@wordpress/compose": "*",
+		"@wordpress/data": "*",
+		"@wordpress/html-entities": "*",
+		"@wordpress/i18n": "*",
 		"@wordpress/icons": "^12.1.0",
-		"@wordpress/scripts": "^30.0.0"
+		"@wordpress/scripts": "^30.0.0",
+		"typescript": "^6.0.3"
 	}
 }

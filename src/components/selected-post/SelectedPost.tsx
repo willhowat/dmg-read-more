@@ -15,16 +15,19 @@ export function SelectedPost( {
 			// getEntityRecord resolves via REST API on first call, then serves from cache.
 			// Light touch check for selected post status to avoid unnecessary calls,
 			// but doesn't account for post status changing after selection.
+
+			// String-based store access is untyped — cast needed until @wordpress/core-data types are added.
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const coreSelect = select( 'core' ) as any;
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const editorSelect = select( 'core/editor' ) as any;
+
 			const record =
 				postId && postType
-					? select( 'core' ).getEntityRecord(
-							'postType',
-							postType,
-							postId
-					  )
+					? coreSelect.getEntityRecord( 'postType', postType, postId )
 					: null;
 			return {
-				currentPostId: select( 'core/editor' ).getCurrentPostId(),
+				currentPostId: editorSelect.getCurrentPostId(),
 				postStatus: record?.status ?? null,
 				postLink: record?.link ?? null,
 			};
