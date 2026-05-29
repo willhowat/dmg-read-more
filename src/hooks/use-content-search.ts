@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from '@wordpress/element';
+import { useState, useEffect, useRef, useMemo } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
 import { decodeEntities } from '@wordpress/html-entities';
 import { useDebouncedInput } from './use-debounced-input';
@@ -59,7 +59,7 @@ function isIdLookup( value: string ): boolean {
  *
  * Query mode is detected automatically from the debounced input value:
  * - Empty string   → recent posts via `/wp/v2/search` (no search param)
- * - Numeric string → ID lookup via each post type's individual REST endpoint in parallel
+ * - Numeric string → ID lookup via each post type's individual REST endpoint in sequence
  * - Any other text → keyword search via `/wp/v2/search?search=…`
  *
  * Entity titles and post URLs are decoded before being returned. Only published
@@ -92,10 +92,14 @@ export function useContentSearch(
 
 	// String key used as the effect dependency — stable across re-renders as
 	// long as the set of slugs doesn't change.
-	const postTypeKey = postTypes
-		.map( ( pt ) => pt.slug )
-		.sort()
-		.join( ',' );
+	const postTypeKey = useMemo(
+		() =>
+			postTypes
+				.map( ( pt ) => pt.slug )
+				.sort()
+				.join( ',' ),
+		[ postTypes ]
+	);
 
 	// Reset to page 1 whenever the debounced query changes.
 	// setPage(1) when page is already 1 is a React bail-out no-op, so no mount guard is needed.
@@ -121,30 +125,34 @@ export function useContentSearch(
 
 			try {
 				if ( isIdLookup( debouncedQuery ) ) {
-					// Try each registered post type endpoint in parallel.
+					// Try each post type endpoint in sequence, stopping on the first hit.
+					// Sequential beats parallel here — a post ID belongs to exactly one
+					// type, so parallel requests always waste N-1 round trips.
 					const id = parseInt( debouncedQuery.trim(), 10 );
-					const settled = await Promise.allSettled(
-						types.map( ( pt ) =>
-							apiFetch< WpPost >( {
+					let found: SearchResult | null = null;
+
+					for ( const pt of types ) {
+						if ( cancelled ) {
+							break;
+						}
+						try {
+							const post = await apiFetch< WpPost >( {
 								path: `/wp/v2/${ pt.restBase }/${ id }?status=publish&_fields=id,title,link,type`,
-							} )
-						)
-					);
+							} );
+							found = {
+								id: post.id,
+								title: decodeEntities( post.title.rendered ),
+								url: post.link,
+								postType: post.type,
+							};
+							break;
+						} catch {
+							// Not this post type — try next.
+						}
+					}
 
 					if ( ! cancelled ) {
-						const found: SearchResult[] = settled
-							.filter(
-								( r ): r is PromiseFulfilledResult< WpPost > =>
-									r.status === 'fulfilled'
-							)
-							.map( ( r ) => ( {
-								id: r.value.id,
-								title: decodeEntities( r.value.title.rendered ),
-								url: r.value.link,
-								postType: r.value.type,
-							} ) );
-
-						setResults( found );
+						setResults( found ? [ found ] : [] );
 						setTotalPages( 1 );
 					}
 				} else {

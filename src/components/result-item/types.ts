@@ -4,5 +4,5 @@ export type ResultItemProps = {
 	result: SearchResult;
 	isSelected: boolean;
 	postTypeLabel: string;
-	onSelect: () => void;
+	onSelect: ( result: SearchResult ) => void;
 };

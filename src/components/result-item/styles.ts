@@ -1,24 +1,30 @@
 import type { CSSProperties } from 'react';
 
+const buttonBase: CSSProperties = {
+	display: 'flex',
+	alignItems: 'center',
+	gap: '8px',
+	width: '100%',
+	textAlign: 'left',
+	padding: '6px 8px',
+	borderRadius: '2px',
+	cursor: 'pointer',
+	font: 'inherit',
+	color: 'inherit',
+};
+
 export const resultItemStyles = {
-	button: ( isSelected: boolean ): CSSProperties => ( {
-		display: 'flex',
-		alignItems: 'center',
-		gap: '8px',
-		width: '100%',
-		textAlign: 'left',
-		padding: '6px 8px',
-		border: `1px solid ${
-			isSelected ? 'var(--wp-admin-theme-color, #3858e9)' : 'transparent'
-		}`,
-		borderRadius: '2px',
-		cursor: 'pointer',
-		background: isSelected
-			? 'rgba(var(--wp-admin-theme-color--rgb, 56, 88, 233), 0.06)'
-			: 'transparent',
-		font: 'inherit',
-		color: 'inherit',
-	} ),
+	buttonDefault: {
+		...buttonBase,
+		border: '1px solid transparent',
+		background: 'transparent',
+	} as CSSProperties,
+
+	buttonSelected: {
+		...buttonBase,
+		border: '1px solid var(--wp-admin-theme-color, #3858e9)',
+		background: 'rgba(var(--wp-admin-theme-color--rgb, 56, 88, 233), 0.06)',
+	} as CSSProperties,
 
 	meta: {
 		display: 'flex',

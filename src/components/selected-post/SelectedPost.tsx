@@ -4,6 +4,9 @@ import { ResultItem } from '../result-item';
 import type { SelectedPostProps } from './types';
 import { selectedPostStyles as S } from './styles';
 
+// Stable no-op passed to ResultItem when used in display-only context.
+const noop = () => {};
+
 export function SelectedPost( {
 	postId,
 	postTitle,
@@ -62,7 +65,7 @@ export function SelectedPost( {
 										  postType.slice( 1 )
 										: __( 'Post', 'dmg-read-more' )
 								}
-								onSelect={ () => {} }
+								onSelect={ noop }
 							/>
 						</div>
 						<button

@@ -1,4 +1,4 @@
-import { useEffect } from '@wordpress/element';
+import { useEffect, useMemo } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { SearchControl } from '@wordpress/components';
 import { ResultsList } from './results-list';
@@ -41,10 +41,13 @@ export function ContentSearch( {
 	}, [ selectedId, setQuery ] );
 
 	const isIdle = skipEmptyQuery && ! query.trim();
-	const displayResults =
-		selectedId !== undefined
-			? results.filter( ( r ) => r.id !== selectedId )
-			: results;
+	const displayResults = useMemo(
+		() =>
+			selectedId !== undefined
+				? results.filter( ( r ) => r.id !== selectedId )
+				: results,
+		[ results, selectedId ]
+	);
 
 	return (
 		<div style={ S.root }>

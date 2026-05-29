@@ -1,3 +1,4 @@
+import { useMemo } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import { Button, Spinner } from '@wordpress/components';
 import { ResultItem } from '../../result-item';
@@ -37,8 +38,10 @@ export function ResultsList( {
 		);
 	}
 
-	const postTypeLabel = ( slug: string ): string =>
-		postTypes.find( ( pt ) => pt.slug === slug )?.label ?? slug;
+	const postTypeLabelMap = useMemo(
+		() => new Map( postTypes.map( ( pt ) => [ pt.slug, pt.label ] ) ),
+		[ postTypes ]
+	);
 
 	const hasResults = ! isLoading && ! error && results.length > 0;
 
@@ -75,10 +78,11 @@ export function ResultsList( {
 							<ResultItem
 								result={ result }
 								isSelected={ result.id === selectedId }
-								postTypeLabel={ postTypeLabel(
+								postTypeLabel={
+									postTypeLabelMap.get( result.postType ) ??
 									result.postType
-								) }
-								onSelect={ () => onSelect( result ) }
+								}
+								onSelect={ onSelect }
 							/>
 						</li>
 					) ) }

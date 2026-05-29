@@ -23,6 +23,65 @@ declare global {
 // Read once at module load — the value is set synchronously before this script runs.
 const phpAllowedSlugs: string[] = window.dmgReadMore?.allowedPostTypes ?? [];
 
+// Module-level cache — resolved once per editor session so multiple block
+// instances share a single /wp/v2/types request.
+let cachedTypes: PostTypeConfig[] | null = null;
+let typesPromise: Promise< PostTypeConfig[] > | null = null;
+
+function fetchPostTypes(): Promise< PostTypeConfig[] > {
+	if ( ! typesPromise ) {
+		typesPromise = apiFetch< Record< string, WpTypeItem > >( {
+			path: '/wp/v2/types?_fields=slug,rest_base,name',
+		} ).then( ( data ) => {
+			let types: PostTypeConfig[] = Object.values( data ).map(
+				( t ) => ( {
+					slug: t.slug,
+					restBase: t.rest_base,
+					label: t.name,
+				} )
+			);
+
+			// PHP allowlist: when non-empty, restrict to only the specified slugs.
+			// An empty allowlist signals that the PHP filter was not used, so all
+			// REST-available types are kept.
+			if ( phpAllowedSlugs.length > 0 ) {
+				types = types.filter( ( t ) =>
+					phpAllowedSlugs.includes( t.slug )
+				);
+			}
+
+			/**
+			 * Filters the post types shown in the DMG Read More block search.
+			 *
+			 * Runs after the PHP allowlist has been applied, so it always receives
+			 * a subset of (or equal to) the PHP-allowed types. Use it to further
+			 * restrict, reorder, or augment the list from a JS-only context.
+			 *
+			 * Returning an empty array is respected — use it to intentionally
+			 * disable the search field for unsupported post types.
+			 *
+			 * Example — exclude the Page post type:
+			 *   wp.hooks.addFilter(
+			 *     'dmg.readMore.postTypes',
+			 *     'my-plugin',
+			 *     ( types ) => types.filter( ( t ) => t.slug !== 'page' )
+			 *   );
+			 *
+			 * @param {PostTypeConfig[]} types Resolved post type list.
+			 * @return {PostTypeConfig[]}
+			 */
+			const filtered = applyFilters(
+				'dmg.readMore.postTypes',
+				types
+			) as PostTypeConfig[];
+
+			cachedTypes = filtered;
+			return filtered;
+		} );
+	}
+	return typesPromise;
+}
+
 /**
  * Resolves the list of post types available for selection in the block editor.
  *
@@ -33,62 +92,23 @@ const phpAllowedSlugs: string[] = window.dmgReadMore?.allowedPostTypes ?? [];
  *   3. Applies the `dmg.readMore.postTypes` JS filter for further JS-side
  *      restriction or reordering.
  *
- * Initialises from DEFAULT_POST_TYPES so the block is usable immediately while
- * the fetch is in flight.
+ * Initializes from DEFAULT_POST_TYPES so the block is usable immediately while
+ * the fetch is in flight. The fetch result is cached at module scope so multiple
+ * block instances share a single /wp/v2/types request per editor session.
  */
 export function usePostTypes(): PostTypeConfig[] {
-	const [ postTypes, setPostTypes ] =
-		useState< PostTypeConfig[] >( DEFAULT_POST_TYPES );
+	// Initialize from cache when available so subsequent mounts skip the
+	// stale-defaults → REST-resolved render cycle.
+	const [ postTypes, setPostTypes ] = useState< PostTypeConfig[] >(
+		cachedTypes ?? DEFAULT_POST_TYPES
+	);
 
 	useEffect( () => {
-		apiFetch< Record< string, WpTypeItem > >( {
-			path: '/wp/v2/types?_fields=slug,rest_base,name',
-		} )
-			.then( ( data ) => {
-				let types: PostTypeConfig[] = Object.values( data ).map(
-					( t ) => ( {
-						slug: t.slug,
-						restBase: t.rest_base,
-						label: t.name,
-					} )
-				);
-
-				// PHP allowlist: when non-empty, restrict to only the specified slugs.
-				// An empty allowlist signals that the PHP filter was not used, so all
-				// REST-available types are kept.
-				if ( phpAllowedSlugs.length > 0 ) {
-					types = types.filter( ( t ) =>
-						phpAllowedSlugs.includes( t.slug )
-					);
-				}
-
-				/**
-				 * Filters the post types shown in the DMG Read More block search.
-				 *
-				 * Runs after the PHP allowlist has been applied, so it always receives
-				 * a subset of (or equal to) the PHP-allowed types. Use it to further
-				 * restrict, reorder, or augment the list from a JS-only context.
-				 *
-				 * Returning an empty array is respected — use it to intentionally
-				 * disable the search field for unsupported post types.
-				 *
-				 * Example — exclude the Page post type:
-				 *   wp.hooks.addFilter(
-				 *     'dmg.readMore.postTypes',
-				 *     'my-plugin',
-				 *     ( types ) => types.filter( ( t ) => t.slug !== 'page' )
-				 *   );
-				 *
-				 * @param {PostTypeConfig[]} types Resolved post type list.
-				 * @return {PostTypeConfig[]}
-				 */
-				const filtered = applyFilters(
-					'dmg.readMore.postTypes',
-					types
-				) as PostTypeConfig[];
-
-				setPostTypes( filtered );
-			} )
+		if ( cachedTypes !== null ) {
+			return;
+		}
+		fetchPostTypes()
+			.then( setPostTypes )
 			.catch( () => {
 				// REST API unavailable — silent fallback keeps the block usable.
 			} );

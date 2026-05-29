@@ -1,21 +1,29 @@
+import { memo, useMemo, useCallback } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import type { ResultItemProps } from './types';
 
 import { resultItemStyles as S } from './styles';
 
-export function ResultItem( {
+function ResultItemComponent( {
 	result,
 	isSelected,
 	postTypeLabel,
 	onSelect,
 }: ResultItemProps ) {
-	let displayUrl = result.url;
-	try {
-		const { pathname } = new URL( result.url );
-		displayUrl = pathname.replace( /\/$/, '' ) || '/';
-	} catch {
-		// Malformed URL — fall back to the raw value.
-	}
+	const displayUrl = useMemo( () => {
+		try {
+			const { pathname } = new URL( result.url );
+			return pathname.replace( /\/$/, '' ) || '/';
+		} catch {
+			// Malformed URL — fall back to the raw value.
+			return result.url;
+		}
+	}, [ result.url ] );
+
+	const handleClick = useCallback(
+		() => onSelect( result ),
+		[ onSelect, result ]
+	);
 
 	return (
 		<button
@@ -23,9 +31,9 @@ export function ResultItem( {
 			className={ `dmg-read-more__result${
 				isSelected ? ' is-selected' : ''
 			}` }
-			onClick={ onSelect }
+			onClick={ handleClick }
 			aria-pressed={ isSelected }
-			style={ S.button( isSelected ) }
+			style={ isSelected ? S.buttonSelected : S.buttonDefault }
 		>
 			<span style={ S.meta }>
 				<span style={ S.title }>
@@ -39,3 +47,5 @@ export function ResultItem( {
 		</button>
 	);
 }
+
+export const ResultItem = memo( ResultItemComponent );
