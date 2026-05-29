@@ -1,7 +1,5 @@
 import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
 import { PanelBody, Placeholder } from '@wordpress/components';
-import { useSelect } from '@wordpress/data';
-import { store as editorStore } from '@wordpress/editor';
 import { applyFilters } from '@wordpress/hooks';
 import { __ } from '@wordpress/i18n';
 import { ContentSearch } from '../components/content-search';
@@ -15,10 +13,6 @@ import { SelectedPost } from '../components/selected-post';
 export default function Edit( { attributes, setAttributes } ) {
 	const { postId, postTitle, postType } = attributes;
 	const blockProps = useBlockProps( { className: 'dmg-read-more' } );
-
-	const currentPostId = useSelect( ( select ) =>
-		select( editorStore ).getCurrentPostId()
-	);
 
 	const removeSelectedPost = () => {
 		setAttributes( { postId: undefined, postTitle: '' } );
@@ -58,10 +52,15 @@ export default function Edit( { attributes, setAttributes } ) {
 				) : (
 					<>
 						<p { ...blockProps }>
-							<a href="#">
+							{ /* eslint-disable-next-line jsx-a11y/anchor-is-valid -- editor-only WYSIWYG preview; not an interactive link */ }
+							<a>
 								<span className="dmg-read-more__prefix">
-									{ applyFilters( 'dmg_read_more_prefix', __( 'Read More:', 'dmg-read-more' ) ) }
-								</span> <span className="dmg-read-more__title">
+									{ applyFilters(
+										'dmg_read_more_prefix',
+										__( 'Read More:', 'dmg-read-more' )
+									) }
+								</span>{ ' ' }
+								<span className="dmg-read-more__title">
 									{ postTitle }
 								</span>
 							</a>

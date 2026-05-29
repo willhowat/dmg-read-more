@@ -1,11 +1,26 @@
 {
-    "name": "dmg/read-more",
-    "description": "A WordPress plugin providing a Read More Gutenberg block and WP-CLI search command",
-    "type": "wordpress-plugin",
-    "require": {
-        "php": ">=8.1"
-    },
-    "autoload": {
-        "classmap": ["includes/"]
-    }
+	"name": "dmg/read-more",
+	"description": "A WordPress plugin providing a Read More Gutenberg block and WP-CLI search command",
+	"type": "wordpress-plugin",
+	"require": {
+		"php": ">=8.1"
+	},
+	"autoload": {
+		"classmap": [
+			"includes/"
+		]
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
+	},
+	"require-dev": {
+		"squizlabs/php_codesniffer": "^3.10",
+		"wp-coding-standards/wpcs": "^3.1"
+	},
+	"scripts": {
+		"lint": "phpcs",
+		"lint:fix": "phpcbf"
+	}
 }

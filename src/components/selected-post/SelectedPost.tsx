@@ -4,15 +4,25 @@ import { ResultItem } from '../result-item';
 import type { SelectedPostProps } from './types';
 import { selectedPostStyles as S } from './styles';
 
-export function SelectedPost( { postId, postTitle, postType, onRemove }: SelectedPostProps ) {
+export function SelectedPost( {
+	postId,
+	postTitle,
+	postType,
+	onRemove,
+}: SelectedPostProps ) {
 	const { currentPostId, postStatus, postLink } = useSelect(
 		( select ) => {
 			// getEntityRecord resolves via REST API on first call, then serves from cache.
 			// Light touch check for selected post status to avoid unnecessary calls,
 			// but doesn't account for post status changing after selection.
-			const record = postId && postType
-				? select( 'core' ).getEntityRecord( 'postType', postType, postId )
-				: null;
+			const record =
+				postId && postType
+					? select( 'core' ).getEntityRecord(
+							'postType',
+							postType,
+							postId
+					  )
+					: null;
 			return {
 				currentPostId: select( 'core/editor' ).getCurrentPostId(),
 				postStatus: record?.status ?? null,
@@ -29,8 +39,7 @@ export function SelectedPost( { postId, postTitle, postType, onRemove }: Selecte
 			<p style={ S.label }>
 				{ postId
 					? __( 'Selected post', 'dmg-read-more' )
-					: __( 'No post selected', 'dmg-read-more' )
-				}
+					: __( 'No post selected', 'dmg-read-more' ) }
 			</p>
 			{ postId ? (
 				<>
@@ -44,9 +53,11 @@ export function SelectedPost( { postId, postTitle, postType, onRemove }: Selecte
 									postType: postType ?? 'post',
 								} }
 								isSelected={ true }
-								postTypeLabel={ postType
-									? postType.charAt( 0 ).toUpperCase() + postType.slice( 1 )
-									: __( 'Post', 'dmg-read-more' )
+								postTypeLabel={
+									postType
+										? postType.charAt( 0 ).toUpperCase() +
+										  postType.slice( 1 )
+										: __( 'Post', 'dmg-read-more' )
 								}
 								onSelect={ () => {} }
 							/>
@@ -54,7 +65,10 @@ export function SelectedPost( { postId, postTitle, postType, onRemove }: Selecte
 						<button
 							type="button"
 							onClick={ onRemove }
-							aria-label={ __( 'Remove selected post', 'dmg-read-more' ) }
+							aria-label={ __(
+								'Remove selected post',
+								'dmg-read-more'
+							) }
 							style={ S.removeButton }
 						>
 							<span
@@ -71,7 +85,10 @@ export function SelectedPost( { postId, postTitle, postType, onRemove }: Selecte
 								style={ S.warningIcon }
 								aria-hidden="true"
 							/>
-							{ __( 'This block links to the post it appears in.', 'dmg-read-more' ) }
+							{ __(
+								'This block links to the post it appears in.',
+								'dmg-read-more'
+							) }
 						</p>
 					) }
 					{ isUnpublished && (
@@ -81,13 +98,19 @@ export function SelectedPost( { postId, postTitle, postType, onRemove }: Selecte
 								style={ S.warningIcon }
 								aria-hidden="true"
 							/>
-							{ __( 'The selected post is not published and will not be displayed.', 'dmg-read-more' ) }
+							{ __(
+								'The selected post is not published and will not be displayed.',
+								'dmg-read-more'
+							) }
 						</p>
 					) }
 				</>
 			) : (
 				<p style={ S.emptyHint }>
-					{ __( 'Search below to select a post to link to.', 'dmg-read-more' ) }
+					{ __(
+						'Search below to select a post to link to.',
+						'dmg-read-more'
+					) }
 				</p>
 			) }
 		</div>

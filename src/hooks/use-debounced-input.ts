@@ -11,20 +11,20 @@ type DebouncedInputOptions = {
  * @param {string}                defaultValue The default value to use.
  * @param {DebouncedInputOptions} options      Set of options for useDebounce, 350ms is the default
  *
- * @returns The input value, the setter and the debounced input value.
+ * @return {Array} The input value, the setter, and the debounced input value.
  */
 export function useDebouncedInput(
 	defaultValue: string = '',
-	options: DebouncedInputOptions = { delay: 350 },
-): [string, (value: string) => void, string] {
+	options: DebouncedInputOptions = { delay: 350 }
+): [ string, ( value: string ) => void, string ] {
 	const { delay } = options;
-	const [input, setInput] = useState<string>(defaultValue);
-	const [debouncedInput, setDebouncedState] = useState(defaultValue);
-	const setDebouncedInput = useDebounce(setDebouncedState, delay);
+	const [ input, setInput ] = useState< string >( defaultValue );
+	const [ debouncedInput, setDebouncedState ] = useState( defaultValue );
+	const setDebouncedInput = useDebounce( setDebouncedState, delay );
 
-	useEffect(() => {
-		setDebouncedInput(input);
-	}, [input, setDebouncedInput]);
+	useEffect( () => {
+		setDebouncedInput( input );
+	}, [ input, setDebouncedInput ] );
 
-	return [input, setInput, debouncedInput];
+	return [ input, setInput, debouncedInput ];
 }

@@ -20,15 +20,16 @@ export function ResultItem( {
 	return (
 		<button
 			type="button"
-			className={ `dmg-read-more__result${ isSelected ? ' is-selected' : '' }` }
+			className={ `dmg-read-more__result${
+				isSelected ? ' is-selected' : ''
+			}` }
 			onClick={ onSelect }
 			aria-pressed={ isSelected }
 			style={ S.button( isSelected ) }
 		>
 			<span style={ S.meta }>
 				<span style={ S.title }>
-					{ result.title ||
-						__( '(no title)', 'dmg-read-more' ) }
+					{ result.title || __( '(no title)', 'dmg-read-more' ) }
 				</span>
 				<span style={ S.url }>{ displayUrl }</span>
 			</span>

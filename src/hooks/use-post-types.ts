@@ -39,24 +39,29 @@ const phpAllowedSlugs: string[] = window.dmgReadMore?.allowedPostTypes ?? [];
  * the fetch is in flight.
  */
 export function usePostTypes(): PostTypeConfig[] {
-	const [ postTypes, setPostTypes ] = useState< PostTypeConfig[] >( DEFAULT_POST_TYPES );
+	const [ postTypes, setPostTypes ] =
+		useState< PostTypeConfig[] >( DEFAULT_POST_TYPES );
 
 	useEffect( () => {
 		apiFetch< Record< string, WpTypeItem > >( {
 			path: '/wp/v2/types?_fields=slug,rest_base,name',
 		} )
 			.then( ( data ) => {
-				let types: PostTypeConfig[] = Object.values( data ).map( ( t ) => ( {
-					slug: t.slug,
-					restBase: t.rest_base,
-					label: t.name,
-				} ) );
+				let types: PostTypeConfig[] = Object.values( data ).map(
+					( t ) => ( {
+						slug: t.slug,
+						restBase: t.rest_base,
+						label: t.name,
+					} )
+				);
 
 				// PHP allowlist: when non-empty, restrict to only the specified slugs.
 				// An empty allowlist signals that the PHP filter was not used, so all
 				// REST-available types are kept.
 				if ( phpAllowedSlugs.length > 0 ) {
-					types = types.filter( ( t ) => phpAllowedSlugs.includes( t.slug ) );
+					types = types.filter( ( t ) =>
+						phpAllowedSlugs.includes( t.slug )
+					);
 				}
 
 				/**
@@ -86,7 +91,9 @@ export function usePostTypes(): PostTypeConfig[] {
 
 				// Guard: if both filters drain the list, fall back to hardcoded defaults
 				// so the search field remains functional rather than silently broken.
-				setPostTypes( filtered.length > 0 ? filtered : DEFAULT_POST_TYPES );
+				setPostTypes(
+					filtered.length > 0 ? filtered : DEFAULT_POST_TYPES
+				);
 			} )
 			.catch( () => {
 				// REST API unavailable — silent fallback keeps the block usable.

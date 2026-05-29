@@ -1,4 +1,7 @@
-import type { SearchResult, PostTypeConfig } from '../../hooks/use-content-search';
+import type {
+	SearchResult,
+	PostTypeConfig,
+} from '../../hooks/use-content-search';
 
 export type { SearchResult, PostTypeConfig };
 

@@ -65,12 +65,13 @@ function isIdLookup( value: string ): boolean {
  * Entity titles and post URLs are decoded before being returned. Only published
  * posts are included; draft/trashed/private posts are excluded.
  *
- * @param {PostTypeConfig[]} postTypes Post types to search across. Defaults to post and page.
- *                                     Pass a stable reference (constant or memoised) to avoid
- *                                     triggering unnecessary re-fetches.
- * @param {number}           perPage   Results per page for keyword/recent modes. Defaults to 10.
+ * @param {PostTypeConfig[]} postTypes      Post types to search across. Defaults to post and page.
+ *                                          Pass a stable reference (constant or memoised) to avoid
+ *                                          triggering unnecessary re-fetches.
+ * @param {number}           perPage        Results per page for keyword/recent modes. Defaults to 10.
+ * @param {boolean}          skipEmptyQuery Skip fetching when the query is empty. Defaults to false.
  *
- * @returns {UseContentSearchReturn}   Live query state, paginated results, and loading/error flags.
+ * @return {UseContentSearchReturn} Live query state, paginated results, and loading/error flags.
  */
 export function useContentSearch(
 	postTypes: PostTypeConfig[] = DEFAULT_POST_TYPES,

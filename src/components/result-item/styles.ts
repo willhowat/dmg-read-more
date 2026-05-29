@@ -8,10 +8,14 @@ export const resultItemStyles = {
 		width: '100%',
 		textAlign: 'left',
 		padding: '6px 8px',
-		border: `1px solid ${ isSelected ? 'var(--wp-admin-theme-color, #3858e9)' : 'transparent' }`,
+		border: `1px solid ${
+			isSelected ? 'var(--wp-admin-theme-color, #3858e9)' : 'transparent'
+		}`,
 		borderRadius: '2px',
 		cursor: 'pointer',
-		background: isSelected ? 'rgba(var(--wp-admin-theme-color--rgb, 56, 88, 233), 0.06)' : 'transparent',
+		background: isSelected
+			? 'rgba(var(--wp-admin-theme-color--rgb, 56, 88, 233), 0.06)'
+			: 'transparent',
 		font: 'inherit',
 		color: 'inherit',
 	} ),

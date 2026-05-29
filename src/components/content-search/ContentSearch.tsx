@@ -18,7 +18,8 @@ export function ContentSearch( {
 	// An explicit postTypes prop (e.g. in tests or a parent override) takes
 	// precedence; otherwise the dynamically resolved list is used.
 	const discoveredTypes = usePostTypes();
-	const postTypes = postTypesProp !== undefined ? postTypesProp : discoveredTypes;
+	const postTypes =
+		postTypesProp !== undefined ? postTypesProp : discoveredTypes;
 	const skipEmptyQuery = selectedId !== undefined;
 
 	const {
@@ -40,9 +41,10 @@ export function ContentSearch( {
 	}, [ selectedId, setQuery ] );
 
 	const isIdle = skipEmptyQuery && ! query.trim();
-	const displayResults = selectedId !== undefined
-		? results.filter( ( r ) => r.id !== selectedId )
-		: results;
+	const displayResults =
+		selectedId !== undefined
+			? results.filter( ( r ) => r.id !== selectedId )
+			: results;
 
 	return (
 		<div style={ S.root }>
@@ -58,7 +60,10 @@ export function ContentSearch( {
 			/>
 			{ isIdle ? (
 				<p style={ S.idleHint }>
-					{ __( 'Type to search for a different post.', 'dmg-read-more' ) }
+					{ __(
+						'Type to search for a different post.',
+						'dmg-read-more'
+					) }
 				</p>
 			) : (
 				<ResultsList

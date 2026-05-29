@@ -44,16 +44,15 @@ export function ResultsList( {
 
 	return (
 		<div>
-			<div
-				role="status"
-				aria-live="polite"
-				aria-atomic="true"
-			>
-				<div style={ S.statusRow } >
+			<div role="status" aria-live="polite" aria-atomic="true">
+				<div style={ S.statusRow }>
 					<p style={ S.statusLabel }>{ statusLabel }</p>
 					{ isLoading && (
 						<Spinner
-							aria-label={ __( 'Loading posts…', 'dmg-read-more' ) }
+							aria-label={ __(
+								'Loading posts…',
+								'dmg-read-more'
+							) }
 						/>
 					) }
 				</div>
@@ -76,7 +75,9 @@ export function ResultsList( {
 							<ResultItem
 								result={ result }
 								isSelected={ result.id === selectedId }
-								postTypeLabel={ postTypeLabel( result.postType ) }
+								postTypeLabel={ postTypeLabel(
+									result.postType
+								) }
 								onSelect={ () => onSelect( result ) }
 							/>
 						</li>

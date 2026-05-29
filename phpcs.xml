@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<ruleset name="DMG Read More">
+    <description>PHPCS rules for dmg-read-more.</description>
+
+    <file>dmg-read-more.php</file>
+    <file>includes/</file>
+    <file>src/block/render.php</file>
+
+    <arg name="basepath" value="."/>
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+    <arg value="sp"/>
+
+    <rule ref="WordPress">
+        <!-- Short array syntax is standard for PHP 8.1+ projects. -->
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax.Found"/>
+    </rule>
+
+    <rule ref="WordPress.Files.FileName">
+        <properties>
+            <property name="strict_class_file_names" value="false"/>
+        </properties>
+    </rule>
+</ruleset>
