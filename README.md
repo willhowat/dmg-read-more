@@ -29,6 +29,34 @@ Search for **DMG Read More** in the block inserter. Use the sidebar panel to sea
 
 The block comes with minimal styling to ensure a working out of the box experience. This is intentionally scope with 0 specificity to allow for easy theme overriding as required.
 
+#### Block supports
+
+The block exposes the following supports, controllable via the editor's block settings panel or `theme.json`:
+
+| Support    | Options                          |
+| ---------- | -------------------------------- |
+| Colour     | Text, background, link           |
+| Typography | Font size                        |
+| Spacing    | Padding, margin                  |
+| Alignment  | Left, centre, right, wide, full  |
+
+Theme authors can disable individual supports via `theme.json` to match their design system:
+
+```json
+{
+    "version": 3,
+    "settings": {
+        "blocks": {
+            "dmg/read-more": {
+                "color": {
+                    "background": false
+                }
+            }
+        }
+    }
+}
+```
+
 ### WP-CLI
 
 Find all posts published within a date range that contain the `dmg/read-more` block:
