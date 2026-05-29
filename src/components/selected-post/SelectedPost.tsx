@@ -5,7 +5,7 @@ import type { SelectedPostProps } from './types';
 import { selectedPostStyles as S } from './styles';
 
 export function SelectedPost( { postId, postTitle, postType, onRemove }: SelectedPostProps ) {
-	const { currentPostId, postStatus } = useSelect(
+	const { currentPostId, postStatus, postLink } = useSelect(
 		( select ) => {
 			// getEntityRecord resolves via REST API on first call, then serves from cache.
 			// Light touch check for selected post status to avoid unnecessary calls,
@@ -16,6 +16,7 @@ export function SelectedPost( { postId, postTitle, postType, onRemove }: Selecte
 			return {
 				currentPostId: select( 'core/editor' ).getCurrentPostId(),
 				postStatus: record?.status ?? null,
+				postLink: record?.link ?? null,
 			};
 		},
 		[ postId, postType ]
@@ -39,7 +40,7 @@ export function SelectedPost( { postId, postTitle, postType, onRemove }: Selecte
 								result={ {
 									id: postId,
 									title: postTitle,
-									url: `?p=${ postId }`,
+									url: postLink ?? `?p=${ postId }`,
 									postType: postType ?? 'post',
 								} }
 								isSelected={ true }
