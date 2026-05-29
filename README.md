@@ -78,7 +78,7 @@ add_filter( 'dmg_read_more_post_types', fn() => [ 'post' ] );
 
 ```js
 wp.hooks.addFilter(
-    'dmg_read_more_post_types',
+    'dmg.readMore.postTypes',
     'my-plugin/restrict-post-types',
     () => [ 'post' ]
 );

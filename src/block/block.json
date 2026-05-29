@@ -33,7 +33,7 @@
 		}
 	},
 	"editorScript": "file:./index.js",
-	"editorStyle": "file:./view.css",
+	"editorStyle": "file:./editor.css",
 	"viewStyle": "file:./view.css",
 	"render": "file:./render.php"
 }
