@@ -19,10 +19,10 @@ $wrapper_attributes = get_block_wrapper_attributes( [ 'class' => 'dmg-read-more'
  *
  * @param string $prefix Translatable default label.
  */
-$prefix = esc_html( apply_filters( 'dmg_read_more_prefix', __( 'Read More', 'dmg-read-more' ) ) );
+$prefix = esc_html( apply_filters( 'dmg_read_more_prefix', __( 'Read More:', 'dmg-read-more' ) ) );
 
 printf(
-	'<p %s><a href="%s"><span class="dmg-read-more__prefix">%s:</span> <span class="dmg-read-more__title">%s</span></a></p>',
+	'<p %s><a href="%s"><span class="dmg-read-more__prefix">%s</span> <span class="dmg-read-more__title">%s</span></a></p>',
 	$wrapper_attributes,
 	$url,
 	$prefix,

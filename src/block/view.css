@@ -1,0 +1,57 @@
+/*
+ * Lightweight frontend styles (viewStyle — only enqueued when block is present).
+ * Intentionally minimal: dmg-read-more is a theme integration point.
+ * Themes are expected to provide typography, spacing, and colour.
+ */
+
+/* Single line targeting editor view to avoid duplication of all in editor.css */
+:where(.editor-styles-wrapper) :where(.dmg-read-more a) {
+	pointer-events: none;
+}
+
+/* Frontend only styles with zero specificity to allow theme override */
+
+:where(.dmg-read-more) {
+	font-size: 0.85em;
+	background-color: var(--wp--preset--color--primary, #f5f5f5);
+    padding: 0.8em 1.25em;
+	position: relative;
+    border-radius: 2px;
+	box-sizing: border-box;
+}
+
+:where(.dmg-read-more a) {
+	/* color: inherit; */
+	color: var(--wp--preset--color--contrast, currentColor);
+	display: flex;
+	flex-direction: column;
+	gap: 0.2em;
+	overflow-wrap: break-word;
+	text-decoration: none;
+	text-wrap: pretty;
+}
+
+:where(.dmg-read-more a)::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+}
+
+:where(.dmg-read-more a:hover, .dmg-read-more a:focus) :where(.dmg-read-more__title) {
+	text-decoration: underline;
+	text-decoration-thickness: from-font;
+}
+
+:where(.dmg-read-more__prefix) {
+	font-size: 0.65em;
+	font-weight: bold;
+	text-transform: uppercase;
+	text-wrap: balance;
+	overflow-wrap: break-word;
+}
+
+:where(.dmg-read-more__title) {
+	text-wrap: pretty;
+	overflow-wrap: break-word;
+}

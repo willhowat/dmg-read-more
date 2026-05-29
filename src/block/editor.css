@@ -1,1 +1,10 @@
-/* TODO: add styles */
+/*
+ * Canvas-only preview styles (editorStyle).
+ * Goal: WYSIWYG fidelity — the editor canvas should match the frontend.
+ * No opinionated colours or typography. Inherits from the editor context.
+ */
+
+.dmg-read-more a {
+	color: inherit;
+	pointer-events: none;
+}
