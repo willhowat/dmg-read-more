@@ -6,6 +6,8 @@ import type { ResultsListProps } from './types';
 
 import { resultsListStyles as S } from './styles';
 
+// Not wrapped in React.memo — most props (isLoading, results, page) change on
+// every fetch, so memo would rarely bail out and isn't worth the overhead.
 export function ResultsList( {
 	results,
 	isLoading,
@@ -94,7 +96,7 @@ export function ResultsList( {
 					<Button
 						variant="tertiary"
 						size="small"
-						onClick={ () => onPageChange( ( p ) => p - 1 ) }
+						onClick={ () => onPageChange( ( p ) => p - 1 ) } /* inline: Button isn't memoised so useCallback here has no effect */
 						disabled={ page <= 1 || isLoading }
 						aria-label={ __( 'Previous page', 'dmg-read-more' ) }
 					>
@@ -111,7 +113,7 @@ export function ResultsList( {
 					<Button
 						variant="tertiary"
 						size="small"
-						onClick={ () => onPageChange( ( p ) => p + 1 ) }
+						onClick={ () => onPageChange( ( p ) => p + 1 ) } /* inline: Button isn't memoised so useCallback here has no effect */
 						disabled={ page >= totalPages || isLoading }
 						aria-label={ __( 'Next page', 'dmg-read-more' ) }
 					>
