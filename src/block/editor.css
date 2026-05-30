@@ -1,0 +1,16 @@
+/*
+ * Canvas-only preview styles (editorStyle).
+ * Imports view.css as the base to match the frontend,
+ * then layers editor-specific overrides on top.
+ */
+
+@import "./view.css";
+
+.dmg-read-more a {
+	color: inherit;
+	pointer-events: none;
+}
+
+.dmg-read-more a::before {
+	content: none;
+}

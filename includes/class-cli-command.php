@@ -5,7 +5,9 @@
  * @package dmg-read-more
  */
 
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 /**
  * Searches published posts containing the dmg/read-more block.
