@@ -1,5 +1,5 @@
 /*
- * Lightweight frontend styles (viewStyle — only enqueued when block is present).
+ * Frontend styles (viewStyle — only enqueued when block is present).
  * Intentionally minimal: dmg-read-more is a theme integration point.
  * Themes are expected to provide typography, spacing, and colour.
  */
@@ -26,7 +26,7 @@
 }
 
 :where(.dmg-read-more a)::before {
-	content: '';
+	content: "";
 	position: absolute;
 	inset: 0;
 	z-index: 1;
@@ -39,7 +39,7 @@
 
 :where(.dmg-read-more__prefix) {
 	font-size: 0.65em;
-	font-weight: bold;
+	font-weight: 700;
 	text-transform: uppercase;
 	text-wrap: balance;
 	overflow-wrap: break-word;
