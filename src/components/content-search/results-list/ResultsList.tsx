@@ -91,7 +91,7 @@ export function ResultsList( {
 				</ul>
 			) }
 
-			{ ! isIdMode && totalPages > 1 && (
+			{ ! isIdMode && totalPages > 1 && trimmed && (
 				<div style={ S.pagination }>
 					<Button
 						variant="tertiary"
