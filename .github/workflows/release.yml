@@ -30,6 +30,7 @@ jobs:
 
       - name: Assemble distributable
         run: |
+          mkdir -p dist/dmg-read-more
           rsync -r \
             --exclude='.git' \
             --exclude='.github' \
