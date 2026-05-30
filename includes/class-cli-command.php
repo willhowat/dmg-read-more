@@ -395,9 +395,18 @@ class DMG_Read_More_CLI {
 
 		$post_types = [];
 		if ( ! empty( $assoc_args['post-type'] ) ) {
-			$post_types = array_values(
+			$requested  = array_values(
 				array_filter( array_map( 'sanitize_key', explode( ',', $assoc_args['post-type'] ) ) )
 			);
+			$registered = get_post_types();
+			$unknown    = array_diff( $requested, array_keys( $registered ) );
+			foreach ( $unknown as $slug ) {
+				WP_CLI::warning( sprintf( 'Unknown post type: "%s" — it will be ignored.', $slug ) );
+			}
+			$post_types = array_values( array_diff( $requested, $unknown ) );
+			if ( ! empty( $requested ) && empty( $post_types ) ) {
+				WP_CLI::error( 'All supplied --post-type values are unrecognised. Aborting.' );
+			}
 		}
 
 		$table   = $wpdb->prefix . 'dmg_read_more_index';
