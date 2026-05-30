@@ -1,4 +1,5 @@
 import { useSelect } from '@wordpress/data';
+import { decodeEntities } from '@wordpress/html-entities';
 import { __ } from '@wordpress/i18n';
 import { ResultItem } from '../result-item';
 import type { SelectedPostProps } from './types';
@@ -13,7 +14,7 @@ export function SelectedPost( {
 	postType,
 	onRemove,
 }: SelectedPostProps ) {
-	const { currentPostId, postStatus, postLink } = useSelect(
+	const { currentPostId, postStatus, postLink, liveTitle } = useSelect(
 		( select ) => {
 			// getEntityRecord resolves via REST API on first call, then serves from cache.
 			// Light touch check for selected post status to avoid unnecessary calls,
@@ -33,6 +34,10 @@ export function SelectedPost( {
 				currentPostId: editorSelect.getCurrentPostId(),
 				postStatus: record?.status ?? null,
 				postLink: record?.link ?? null,
+				// Decoded live title — null until the entity record resolves.
+				liveTitle: record?.title?.rendered
+					? decodeEntities( record.title.rendered )
+					: null,
 			};
 		},
 		[ postId, postType ]
@@ -54,7 +59,7 @@ export function SelectedPost( {
 							<ResultItem
 								result={ {
 									id: postId,
-									title: postTitle,
+									title: liveTitle ?? postTitle,
 									url: postLink ?? `?p=${ postId }`,
 									postType: postType ?? 'post',
 								} }
