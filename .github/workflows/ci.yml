@@ -7,7 +7,7 @@ on:
 
 jobs:
   js:
-    name: JS lint & type-check
+    name: Lint [JS, CSS] & type-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,3 +31,4 @@ jobs:
           tools: composer
       - run: composer install --no-progress --prefer-dist
       - run: composer lint
+      - run: composer test
