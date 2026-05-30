@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  js:
+    uses: ./.github/workflows/reusable-js.yml
+    with:
+      upload-build: true
+
+  php:
+    uses: ./.github/workflows/reusable-php.yml
+
+  package:
+    name: Package & publish release
+    needs: [js, php]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build/
+
+      - name: Assemble distributable
+        run: |
+          mkdir -p dist/dmg-read-more
+          rsync -r \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.editorconfig' \
+            --exclude='.gitignore' \
+            --exclude='.npmrc' \
+            --exclude='.nvmrc' \
+            --exclude='.phpunit.result.cache' \
+            --exclude='composer.lock' \
+            --exclude='dist' \
+            --exclude='node_modules' \
+            --exclude='package.json' \
+            --exclude='package-lock.json' \
+            --exclude='phpcs.xml' \
+            --exclude='phpunit.xml' \
+            --exclude='src' \
+            --exclude='tests' \
+            --exclude='tsconfig.json' \
+            --exclude='vendor' \
+            --exclude='webpack.config.js' \
+            . dist/dmg-read-more/
+
+      - name: Create archive
+        run: |
+          cd dist
+          zip -r "../dmg-read-more-${{ github.ref_name }}.zip" dmg-read-more/
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found" CHANGELOG.md > release-notes.md
+          gh release create "${{ github.ref_name }}" \
+            --notes-file release-notes.md \
+            "dmg-read-more-${{ github.ref_name }}.zip"

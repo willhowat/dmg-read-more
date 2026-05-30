@@ -1,0 +1,13 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  js:
+    uses: ./.github/workflows/reusable-js.yml
+
+  php:
+    uses: ./.github/workflows/reusable-php.yml

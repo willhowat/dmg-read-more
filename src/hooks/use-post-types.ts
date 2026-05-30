@@ -1,0 +1,133 @@
+import { useState, useEffect } from '@wordpress/element';
+import apiFetch from '@wordpress/api-fetch';
+import { applyFilters } from '@wordpress/hooks';
+import { DEFAULT_POST_TYPES, type PostTypeConfig } from './use-content-search';
+
+// Narrowed shape of each entry in the /wp/v2/types response.
+type WpTypeItem = {
+	slug: string;
+	rest_base: string;
+	name: string;
+};
+
+declare global {
+	interface Window {
+		dmgReadMore?: {
+			// Injected by dmg-read-more.php via wp_add_inline_script.
+			// Empty array means the PHP filter was not used — no restriction applied.
+			allowedPostTypes: string[];
+		};
+	}
+}
+
+// Read once at module load — the value is set synchronously before this script runs.
+const phpAllowedSlugs: string[] = window.dmgReadMore?.allowedPostTypes ?? [];
+
+// Module-level cache — resolved once per editor session so multiple block
+// instances share a single /wp/v2/types request.
+let cachedTypes: PostTypeConfig[] | null = null;
+let typesPromise: Promise< PostTypeConfig[] > | null = null;
+
+function fetchPostTypes(): Promise< PostTypeConfig[] > {
+	if ( ! typesPromise ) {
+		typesPromise = apiFetch< Record< string, WpTypeItem > >( {
+			path: '/wp/v2/types?_fields=slug,rest_base,name',
+		} ).then( ( data ) => {
+			let types: PostTypeConfig[] = Object.values( data ).map(
+				( t ) => ( {
+					slug: t.slug,
+					restBase: t.rest_base,
+					label: t.name,
+				} )
+			);
+
+			// PHP allowlist: when non-empty, restrict to only the specified slugs.
+			// An empty allowlist signals that the PHP filter was not used, so all
+			// REST-available types are kept.
+			if ( phpAllowedSlugs.length > 0 ) {
+				types = types.filter( ( t ) =>
+					phpAllowedSlugs.includes( t.slug )
+				);
+			}
+
+			/**
+			 * Filters the post types shown in the DMG Read More block search.
+			 *
+			 * Runs after the PHP allowlist has been applied, so it always receives
+			 * a subset of (or equal to) the PHP-allowed types. Use it to further
+			 * restrict, reorder, or augment the list from a JS-only context.
+			 *
+			 * Returning an empty array is respected — use it to intentionally
+			 * disable the search field for unsupported post types.
+			 *
+			 * Example — exclude the Page post type:
+			 *   wp.hooks.addFilter(
+			 *     'dmg.readMore.postTypes',
+			 *     'my-plugin',
+			 *     ( types ) => types.filter( ( t ) => t.slug !== 'page' )
+			 *   );
+			 *
+			 * @param {PostTypeConfig[]} types Resolved post type list.
+			 * @return {PostTypeConfig[]}
+			 */
+			const filtered = applyFilters(
+				'dmg.readMore.postTypes',
+				types
+			) as PostTypeConfig[];
+
+			if ( filtered.length > 0 ) {
+				cachedTypes = filtered;
+				return filtered;
+			}
+
+			// The fetch resolved to an empty list — likely a transient REST error or
+			// an over-restrictive filter. Don't cache the empty result: reset the
+			// promise so the next mount retries, and fall back to defaults now.
+			typesPromise = null;
+			return DEFAULT_POST_TYPES;
+		} );
+	}
+	return typesPromise;
+}
+
+/**
+ * Resolves the list of post types available for selection in the block editor.
+ *
+ * Resolution order:
+ *   1. Fetches all publicly available post types from /wp/v2/types.
+ *   2. If the `dmg_read_more_post_types` PHP filter provided an allowlist,
+ *      restricts the list to those slugs.
+ *   3. Applies the `dmg.readMore.postTypes` JS filter for further JS-side
+ *      restriction or reordering.
+ *
+ * Initializes from DEFAULT_POST_TYPES so the block is usable immediately while
+ * the fetch is in flight. The fetch result is cached at module scope so multiple
+ * block instances share a single /wp/v2/types request per editor session.
+ */
+export function usePostTypes(): PostTypeConfig[] {
+	// `??` only guards against null/undefined — an empty array is truthy and
+	// would bypass DEFAULT_POST_TYPES. Use length to treat [] the same as null.
+	const [ postTypes, setPostTypes ] = useState< PostTypeConfig[] >(
+		cachedTypes?.length ? cachedTypes : DEFAULT_POST_TYPES
+	);
+
+	useEffect( () => {
+		// Recover from a stale empty cache written by a prior transient error.
+		// Reset both so fetchPostTypes() creates a fresh request this mount.
+		if ( cachedTypes !== null && cachedTypes.length === 0 ) {
+			cachedTypes = null;
+			typesPromise = null;
+		}
+
+		if ( cachedTypes !== null ) {
+			return;
+		}
+		fetchPostTypes()
+			.then( setPostTypes )
+			.catch( () => {
+				// REST API unavailable — silent fallback keeps the block usable.
+			} );
+	}, [] );
+
+	return postTypes;
+}

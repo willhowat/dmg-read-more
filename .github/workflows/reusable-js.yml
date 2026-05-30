@@ -1,0 +1,31 @@
+name: JS checks
+
+on:
+  workflow_call:
+    inputs:
+      upload-build:
+        description: Upload build/ as a workflow artifact
+        type: boolean
+        default: false
+
+jobs:
+  js:
+    name: Lint [JS, CSS], type-check & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:js
+      - run: npm run lint:css
+      - run: npm run type-check
+      - run: npm run build
+      - if: inputs.upload-build
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: build/
+          retention-days: 1
