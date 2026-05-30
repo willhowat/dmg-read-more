@@ -25,6 +25,7 @@ add_action(
 	'init',
 	static function () {
 		register_block_type( __DIR__ . '/build/block' );
+		wp_set_script_translations( 'dmg-read-more-editor-script', 'dmg-read-more', DMG_READ_MORE_PATH . 'languages' );
 	}
 );
 
