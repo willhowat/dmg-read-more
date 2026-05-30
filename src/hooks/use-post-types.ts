@@ -75,8 +75,16 @@ function fetchPostTypes(): Promise< PostTypeConfig[] > {
 				types
 			) as PostTypeConfig[];
 
-			cachedTypes = filtered;
-			return filtered;
+			if ( filtered.length > 0 ) {
+				cachedTypes = filtered;
+				return filtered;
+			}
+
+			// The fetch resolved to an empty list — likely a transient REST error or
+			// an over-restrictive filter. Don't cache the empty result: reset the
+			// promise so the next mount retries, and fall back to defaults now.
+			typesPromise = null;
+			return DEFAULT_POST_TYPES;
 		} );
 	}
 	return typesPromise;
@@ -97,13 +105,20 @@ function fetchPostTypes(): Promise< PostTypeConfig[] > {
  * block instances share a single /wp/v2/types request per editor session.
  */
 export function usePostTypes(): PostTypeConfig[] {
-	// Initialize from cache when available so subsequent mounts skip the
-	// stale-defaults → REST-resolved render cycle.
+	// `??` only guards against null/undefined — an empty array is truthy and
+	// would bypass DEFAULT_POST_TYPES. Use length to treat [] the same as null.
 	const [ postTypes, setPostTypes ] = useState< PostTypeConfig[] >(
-		cachedTypes ?? DEFAULT_POST_TYPES
+		cachedTypes?.length ? cachedTypes : DEFAULT_POST_TYPES
 	);
 
 	useEffect( () => {
+		// Recover from a stale empty cache written by a prior transient error.
+		// Reset both so fetchPostTypes() creates a fresh request this mount.
+		if ( cachedTypes !== null && cachedTypes.length === 0 ) {
+			cachedTypes = null;
+			typesPromise = null;
+		}
+
 		if ( cachedTypes !== null ) {
 			return;
 		}
