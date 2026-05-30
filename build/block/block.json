@@ -5,6 +5,7 @@
   "title": "DMG Read More",
   "category": "text",
   "description": "Insert a styled Read More link to any published post.",
+  "textdomain": "dmg-read-more",
   "attributes": {
     "postId": {
       "type": "integer"
