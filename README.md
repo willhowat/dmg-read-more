@@ -59,18 +59,59 @@ Theme authors can disable individual supports via `theme.json` to match their de
 
 ### WP-CLI
 
-Find all posts published within a date range that contain the `dmg/read-more` block:
+The WP-CLI commands use a dedicated index table for performance at scale. The table must be created and seeded before `search` can be used.
+
+#### First-time setup
 
 ```bash
-wp dmg-read-more search
-wp dmg-read-more search --date-after=2024-01-01 --date-before=2024-06-01
+wp dmg-read-more migrate   # create the index table
+wp dmg-read-more backfill  # seed from existing posts
 ```
 
-Dates are ISO 8601. Defaults to the last 30 days.
+Once the index is in place it is maintained automatically as posts are saved or deleted.
+
+#### Search
+
+Find published posts containing the block within a date range:
+
+```bash
+# Last 30 days (default)
+wp dmg-read-more search
+
+# Specific date range (ISO 8601)
+wp dmg-read-more search --date-after=2024-01-01 --date-before=2024-06-01
+
+# Restrict to specific post types
+wp dmg-read-more search --post-type=post,page
+
+# Combine filters
+wp dmg-read-more search --date-after=2024-01-01 --post-type=post
+
+# Output only the count (useful for monitoring)
+wp dmg-read-more search --format=count
+```
+
+Matching post IDs are written to STDOUT, one per line. `--format=count` outputs only the total as a bare number, suitable for piping.
+
+#### Resyncing after deactivation
+
+If the plugin is deactivated and posts are edited during that period, the index may become stale. Run `sync` to reconcile:
+
+```bash
+wp dmg-read-more sync
+```
+
+This removes entries for posts that no longer contain the block (or are no longer published) and adds entries for any posts that were missed.
 
 ### Filters
 
-**`dmg_read_more_post_types`** — restrict which post types appear in the block's search results. Available in PHP and JavaScript:
+**`dmg_read_more_allowed_in_post_types`** — restrict which post types the block can be inserted into. When this returns a non-empty array the block is hidden from the inserter on all other post types:
+
+```php
+add_filter( 'dmg_read_more_allowed_in_post_types', fn() => [ 'post', 'case_study' ] );
+```
+
+**`dmg_read_more_post_types`** — restrict which post types appear in the block's search results (the post being linked to). Available in PHP and JavaScript:
 
 ```php
 add_filter( 'dmg_read_more_post_types', fn() => [ 'post' ] );
