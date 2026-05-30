@@ -166,7 +166,7 @@ class DMG_Read_More_CLI {
 			);
 
 			$wpdb->flush();
-			wp_cache_flush();
+			\WP_CLI\Utils\wp_clear_object_cache();
 
 			$fetched = count( $ids );
 		} while ( $fetched === $chunk );
@@ -255,7 +255,7 @@ class DMG_Read_More_CLI {
 			);
 
 			$wpdb->flush();
-			wp_cache_flush();
+			\WP_CLI\Utils\wp_clear_object_cache();
 
 			$fetched = count( $stale_ids );
 		} while ( $fetched === $chunk );
@@ -315,7 +315,7 @@ class DMG_Read_More_CLI {
 			);
 
 			$wpdb->flush();
-			wp_cache_flush();
+			\WP_CLI\Utils\wp_clear_object_cache();
 
 			$fetched = count( $missing_ids );
 		} while ( $fetched === $chunk );
@@ -376,8 +376,8 @@ class DMG_Read_More_CLI {
 
 		global $wpdb;
 
-		$date_after  = $assoc_args['date-after'] ?? gmdate( 'Y-m-d', strtotime( '-30 days' ) );
-		$date_before = $assoc_args['date-before'] ?? gmdate( 'Y-m-d' );
+		$date_after  = $assoc_args['date-after'] ?? wp_date( 'Y-m-d', strtotime( '-30 days' ) );
+		$date_before = $assoc_args['date-before'] ?? wp_date( 'Y-m-d' );
 
 		if ( ! $this->is_valid_date( $date_after ) ) {
 			WP_CLI::error( sprintf( 'Invalid --date-after value: "%s". Expected ISO 8601 (YYYY-MM-DD).', $date_after ) );
@@ -388,6 +388,10 @@ class DMG_Read_More_CLI {
 		}
 
 		$format = $assoc_args['format'] ?? 'ids';
+
+		if ( ! in_array( $format, [ 'ids', 'count' ], true ) ) {
+			WP_CLI::error( sprintf( 'Invalid --format value: "%s". Accepted values: ids, count.', $format ) );
+		}
 
 		$post_types = [];
 		if ( ! empty( $assoc_args['post-type'] ) ) {
@@ -448,7 +452,7 @@ class DMG_Read_More_CLI {
 			);
 
 			$wpdb->flush();
-			wp_cache_flush();
+			\WP_CLI\Utils\wp_clear_object_cache();
 
 			$fetched = count( $rows );
 		} while ( $fetched === $chunk );

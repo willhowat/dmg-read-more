@@ -126,8 +126,8 @@ add_action(
 		global $wpdb;
 		$table = $wpdb->prefix . 'dmg_read_more_index';
 
-		static $table_ready = null;
-		if ( null === $table_ready ) {
+		static $table_ready = false;
+		if ( ! $table_ready ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 			$table_ready = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
 		}
@@ -135,7 +135,7 @@ add_action(
 			return;
 		}
 
-		if ( 'publish' === $post->post_status && has_block( 'dmg/read-more', $post_id ) ) {
+		if ( 'publish' === $post->post_status && has_block( 'dmg/read-more', $post ) ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->replace( $table, [ 'post_id' => $post_id ], [ '%d' ] );
 		} else {
