@@ -113,7 +113,7 @@ class DMG_Read_More_CLI {
 		global $wpdb;
 
 		$table   = $wpdb->prefix . 'dmg_read_more_index';
-		$like    = $wpdb->esc_like( '<!-- wp:dmg/read-more' ) . '%';
+		$like    = '%' . $wpdb->esc_like( '<!-- wp:dmg/read-more' ) . '%';
 		$last_id = 0;
 		$chunk   = 100;
 		$indexed = 0;
@@ -197,7 +197,7 @@ class DMG_Read_More_CLI {
 		global $wpdb;
 
 		$table   = $wpdb->prefix . 'dmg_read_more_index';
-		$like    = $wpdb->esc_like( '<!-- wp:dmg/read-more' ) . '%';
+		$like    = '%' . $wpdb->esc_like( '<!-- wp:dmg/read-more' ) . '%';
 		$last_id = 0;
 		$chunk   = 100;
 		$removed = 0;
@@ -332,10 +332,10 @@ class DMG_Read_More_CLI {
 	 * ## OPTIONS
 	 *
 	 * [--date-after=<date>]
-	 * : ISO 8601 date. Only return posts published after this date. Defaults to 30 days ago.
+	 * : ISO 8601 date. Only return posts published on or after this date. Defaults to 30 days ago.
 	 *
 	 * [--date-before=<date>]
-	 * : ISO 8601 date. Only return posts published before this date. Defaults to today.
+	 * : ISO 8601 date. Only return posts published on or before this date. Defaults to today.
 	 *
 	 * [--post-type=<slug>]
 	 * : Comma-separated post type slugs to restrict results. Defaults to all post types.
