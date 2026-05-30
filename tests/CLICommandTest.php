@@ -94,4 +94,44 @@ class CLICommandTest extends TestCase {
 
 		$this->cli->search( [], [] );
 	}
+
+	public function test_search_passes_custom_dates_to_query(): void {
+		$this->wpdb->set_table_exists( true );
+		$this->wpdb->set_get_col_sequence( [ [ '5', '6' ] ] );
+
+		$this->cli->search( [], [
+			'date-after'  => '2024-01-01',
+			'date-before' => '2024-06-30',
+		] );
+
+		$this->assertSame( [ '5', '6' ], WP_CLI::$lines );
+
+		// prepare_calls[0] = table_exists (1 arg); [1] = first chunk (date_after, date_before, cursor, limit).
+		$chunk_args = $this->wpdb->prepare_calls[1];
+		$this->assertSame( '2024-01-01', $chunk_args[0], 'date-after should be the first query parameter' );
+		$this->assertSame( '2024-06-30', $chunk_args[1], 'date-before should be the second query parameter' );
+	}
+
+	public function test_search_cursor_advances_between_chunks(): void {
+		$chunk1 = array_map( 'strval', range( 1, 100 ) );
+
+		$this->wpdb->set_table_exists( true );
+		$this->wpdb->set_get_col_sequence( [ $chunk1, [] ] );
+
+		$this->cli->search( [], [] );
+
+		// prepare_calls[0] = table_exists; [1] = first chunk; [2] = second chunk.
+		$this->assertSame( 0, $this->wpdb->prepare_calls[1][2], 'First chunk should start cursor at 0' );
+		$this->assertSame( 100, $this->wpdb->prepare_calls[2][2], 'Second chunk cursor should equal last ID of first chunk' );
+	}
+
+	public function test_search_format_count_with_no_results(): void {
+		$this->wpdb->set_table_exists( true );
+		$this->wpdb->set_get_col_sequence( [ [] ] );
+
+		$this->cli->search( [], [ 'format' => 'count' ] );
+
+		$this->assertSame( [ '0' ], WP_CLI::$lines );
+		$this->assertEmpty( WP_CLI::$success );
+	}
 }

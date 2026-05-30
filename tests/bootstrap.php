@@ -77,6 +77,9 @@ namespace {
 		public string $last_error    = '';
 		public int    $rows_affected = 0;
 
+		/** @var array<array<mixed>> */
+		public array $prepare_calls = [];
+
 		private mixed $get_var_return   = null;
 		private array $get_col_sequence = [];
 		private bool  $col_error        = false;
@@ -117,6 +120,7 @@ namespace {
 		}
 
 		public function prepare( string $query, mixed ...$args ): string {
+			$this->prepare_calls[] = $args;
 			return $query;
 		}
 

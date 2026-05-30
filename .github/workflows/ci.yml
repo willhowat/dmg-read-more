@@ -7,7 +7,7 @@ on:
 
 jobs:
   js:
-    name: Lint [JS, CSS] & type-check
+    name: Lint [JS, CSS], type-check & build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,16 +19,25 @@ jobs:
       - run: npm run lint:js
       - run: npm run lint:css
       - run: npm run type-check
+      - run: npm run build
 
   php:
-    name: PHP lint
+    name: PHP ${{ matrix.php-version }} — lint & test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-version: ['8.1', '8.2']
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-php${{ matrix.php-version }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-php${{ matrix.php-version }}-
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: ${{ matrix.php-version }}
           tools: composer
-      - run: composer install --no-progress --prefer-dist
+      - run: composer install --no-progress --prefer-dist --no-interaction
       - run: composer lint
       - run: composer test
