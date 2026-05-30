@@ -52,13 +52,15 @@ export default function Edit( { attributes, setAttributes } ) {
 			</InspectorControls>
 			<>
 				{ ! postId ? (
-					<Placeholder
-						label={ __( 'DMG Read More', 'dmg-read-more' ) }
-						instructions={ __(
-							'Select a post to link to using the block settings panel.',
-							'dmg-read-more'
-						) }
-					/>
+					<div { ...blockProps }>
+						<Placeholder
+							label={ __( 'DMG Read More', 'dmg-read-more' ) }
+							instructions={ __(
+								'Select a post to link to using the block settings panel.',
+								'dmg-read-more'
+							) }
+						/>
+					</div>
 				) : (
 					<>
 						<p { ...blockProps }>
