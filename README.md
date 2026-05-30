@@ -11,6 +11,21 @@ A WordPress plugin that provides a Gutenberg block and WP-CLI command for insert
 
 ### Via Composer
 
+This package is not published on Packagist. Add the GitHub repository as a VCS source in your project's `composer.json` first, then require the package as normal.
+
+> If you fork this repository, update the `url` below to point at your fork.
+
+```json
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/willhowat/dmg-read-more"
+        }
+    ]
+}
+```
+
 ```bash
 composer require dmg/read-more
 ```
@@ -27,7 +42,7 @@ Search for **DMG Read More** in the block inserter. Use the sidebar panel to sea
 
 #### Styling
 
-The block comes with minimal styling to ensure a working out of the box experience. This is intentionally scope with 0 specificity to allow for easy theme overriding as required.
+The block comes with minimal styling to ensure a working out of the box experience. This is intentionally scoped with 0 specificity to allow for easy theme overriding as required.
 
 #### Block supports
 
@@ -147,13 +162,18 @@ Node 24 and Composer are required.
 npm install
 npm run build       # production build → build/
 npm run start       # development watch mode
-npm run lint:js     # ESLint
-npm run type-check  # TypeScript
-npm run format      # Prettier
+npm run lint:js       # ESLint
+npm run lint:js:fix   # ESLint auto-fix
+npm run lint:css      # Stylelint
+npm run lint:css:fix  # Stylelint auto-fix
+npm run type-check    # TypeScript
+npm run format        # Prettier
+npm run make-pot      # Generate .pot translation file
 
 composer install
 composer lint       # PHPCS (WordPress Coding Standards)
 composer lint:fix   # PHPCBF auto-fix
+composer test       # PHPUnit
 ```
 
 ## Build output

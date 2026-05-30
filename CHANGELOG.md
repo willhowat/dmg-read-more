@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `dmg/read-more` Gutenberg block — dynamic block that renders a styled Read More link to any published post
 - Sidebar inspector panel with debounced keyword search, direct post ID lookup, and paginated results
 - WYSIWYG canvas preview matching frontend output; warning notice when the block links to the post it appears in
-- PHP render callback outputting `<p class="dmg-read-more"><a href="...">Read More: ...</a></p>`
+- PHP render callback outputting `<p class="dmg-read-more">` (with block-support attributes via `get_block_wrapper_attributes()`) containing an anchor with `<span class="dmg-read-more__prefix">` and `<span class="dmg-read-more__title">` children
 - WP-CLI command group `wp dmg-read-more` with four subcommands:
   - `migrate` — creates the `{prefix}dmg_read_more_index` table
   - `backfill` — seeds the index from existing published posts
