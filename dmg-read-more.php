@@ -19,6 +19,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'DMG_READ_MORE_VERSION', '1.0.0' );
 define( 'DMG_READ_MORE_PATH', plugin_dir_path( __FILE__ ) );
 
+/**
+ * Returns true when running in a WordPress VIP environment.
+ */
+function dmg_read_more_is_vip(): bool {
+	return defined( 'WPCOM_IS_VIP_ENV' ) && WPCOM_IS_VIP_ENV;
+}
+
 require_once DMG_READ_MORE_PATH . 'includes/class-cli-command.php';
 
 add_action(
