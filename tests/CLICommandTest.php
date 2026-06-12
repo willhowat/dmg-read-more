@@ -274,8 +274,7 @@ class CLICommandTest extends TestCase {
 	}
 
 	public function test_remove_dry_run_with_no_posts(): void {
-		$this->wpdb->set_table_exists( true );
-		$this->wpdb->set_get_col_sequence( [ [] ] );
+		$this->wpdb->set_get_var_sequence( [ 'wp_dmg_read_more_index', '0' ] );
 
 		$this->cli->remove( [], [ 'dry-run' => true ] );
 
@@ -283,7 +282,7 @@ class CLICommandTest extends TestCase {
 	}
 
 	public function test_remove_dry_run_lists_post_ids(): void {
-		$this->wpdb->set_table_exists( true );
+		$this->wpdb->set_get_var_sequence( [ 'wp_dmg_read_more_index', '3' ] );
 		$this->wpdb->set_get_col_sequence( [ [ '5', '6', '7' ] ] );
 
 		$this->cli->remove( [], [ 'dry-run' => true ] );
@@ -293,7 +292,7 @@ class CLICommandTest extends TestCase {
 	}
 
 	public function test_remove_processes_posts(): void {
-		$this->wpdb->set_table_exists( true );
+		$this->wpdb->set_get_var_sequence( [ 'wp_dmg_read_more_index', '2' ] );
 		$this->wpdb->set_get_col_sequence( [ [ '5', '6' ] ] );
 
 		$this->cli->remove( [], [] );
@@ -319,7 +318,7 @@ class CLICommandTest extends TestCase {
 	}
 
 	public function test_replace_dry_run_lists_post_ids(): void {
-		$this->wpdb->set_table_exists( true );
+		$this->wpdb->set_get_var_sequence( [ 'wp_dmg_read_more_index', '2' ] );
 		$this->wpdb->set_get_col_sequence( [ [ '10', '20' ] ] );
 
 		$this->cli->replace( [ 'core/paragraph' ], [ 'dry-run' => true ] );
@@ -329,7 +328,7 @@ class CLICommandTest extends TestCase {
 	}
 
 	public function test_replace_processes_posts(): void {
-		$this->wpdb->set_table_exists( true );
+		$this->wpdb->set_get_var_sequence( [ 'wp_dmg_read_more_index', '2' ] );
 		$this->wpdb->set_get_col_sequence( [ [ '10', '20' ] ] );
 
 		$this->cli->replace( [ 'core/paragraph' ], [] );
