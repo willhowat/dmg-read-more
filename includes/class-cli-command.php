@@ -46,6 +46,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  *     # Restrict results to specific post types
  *     wp dmg-read-more search --post-type=post,page
+ *
+ *     # Report how many posts contain the block
+ *     wp dmg-read-more audit
+ *
+ *     # Preview block removal across the network
+ *     wp dmg-read-more remove --dry-run --network
+ *
+ *     # Replace the block across the network
+ *     wp dmg-read-more replace core/paragraph --network --yes
  */
 class DMG_Read_More_CLI {
 
