@@ -106,7 +106,7 @@ class DMG_Read_More_CLI {
 		$this->maybe_warn_network_single_site( $assoc_args );
 
 		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
-			$this->iterate_network( fn() => $this->run_migrate() );
+			$this->iterate_network( fn( int $site_id ) => $this->run_migrate() ); // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
 			return;
 		}
 
@@ -145,7 +145,7 @@ class DMG_Read_More_CLI {
 		$this->maybe_warn_network_single_site( $assoc_args );
 
 		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
-			$this->iterate_network( fn() => $this->run_backfill() );
+			$this->iterate_network( fn( int $site_id ) => $this->run_backfill() ); // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
 			return;
 		}
 
@@ -184,7 +184,7 @@ class DMG_Read_More_CLI {
 		$this->maybe_warn_network_single_site( $assoc_args );
 
 		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
-			$this->iterate_network( fn() => $this->run_sync() );
+			$this->iterate_network( fn( int $site_id ) => $this->run_sync() ); // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
 			return;
 		}
 
@@ -599,13 +599,13 @@ class DMG_Read_More_CLI {
 			$rows = [];
 			$this->iterate_network(
 				function ( int $site_id ) use ( &$rows ) {
-					if ( ! $this->table_exists() ) {
+					if ( ! dmg_read_more_is_vip() && ! $this->table_exists() ) {
 						WP_CLI::warning( sprintf( 'Site %d: index table not found, skipping.', $site_id ) );
 						return;
 					}
 					$rows[] = [
 						'site_id' => $site_id,
-						'posts'   => $this->get_index_count(),
+						'posts'   => $this->get_block_count(),
 					];
 				}
 			);
@@ -619,11 +619,11 @@ class DMG_Read_More_CLI {
 			return;
 		}
 
-		if ( ! $this->table_exists() ) {
+		if ( ! dmg_read_more_is_vip() && ! $this->table_exists() ) {
 			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` then `wp dmg-read-more backfill` first.' );
 		}
 
-		WP_CLI::success( sprintf( '%d post(s) contain the dmg/read-more block.', $this->get_index_count() ) );
+		WP_CLI::success( sprintf( '%d post(s) contain the dmg/read-more block.', $this->get_block_count() ) );
 	}
 
 	/**
@@ -658,7 +658,7 @@ class DMG_Read_More_CLI {
 		$this->maybe_warn_network_single_site( $assoc_args );
 
 		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
-			$this->iterate_network( fn() => $this->run_remove( $assoc_args ) );
+			$this->iterate_network( fn( int $site_id ) => $this->run_remove( $assoc_args ) ); // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
 			return;
 		}
 
@@ -706,7 +706,7 @@ class DMG_Read_More_CLI {
 		$this->maybe_warn_network_single_site( $assoc_args );
 
 		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
-			$this->iterate_network( fn() => $this->run_replace( $new_block, $assoc_args ) );
+			$this->iterate_network( fn( int $site_id ) => $this->run_replace( $new_block, $assoc_args ) ); // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
 			return;
 		}
 
@@ -727,15 +727,14 @@ class DMG_Read_More_CLI {
 
 		global $wpdb;
 		$table = $wpdb->prefix . 'dmg_read_more_index';
+		$chunk = 100;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$post_ids = $wpdb->get_col( "SELECT post_id FROM {$table} ORDER BY post_id ASC" );
+		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
 
 		if ( $wpdb->last_error ) {
 			WP_CLI::error( $wpdb->last_error );
 		}
-
-		$count = count( $post_ids );
 
 		if ( 0 === $count ) {
 			WP_CLI::success( 'No posts contain the dmg/read-more block.' );
@@ -744,38 +743,95 @@ class DMG_Read_More_CLI {
 
 		if ( $dry_run ) {
 			WP_CLI::log( sprintf( 'Dry run: %d post(s) would have dmg/read-more removed.', $count ) );
-			foreach ( $post_ids as $post_id ) {
-				WP_CLI::line( (string) $post_id );
-			}
+			$last_id = 0;
+			do {
+				// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$ids = $wpdb->get_col(
+					$wpdb->prepare(
+						"SELECT post_id FROM {$table} WHERE post_id > %d ORDER BY post_id ASC LIMIT %d",
+						$last_id,
+						$chunk
+					)
+				);
+				// phpcs:enable
+				foreach ( $ids as $post_id ) {
+					WP_CLI::line( (string) $post_id );
+				}
+				if ( ! empty( $ids ) ) {
+					$last_id = (int) end( $ids );
+				}
+				$fetched = count( $ids );
+			} while ( $fetched === $chunk );
 			return;
 		}
 
 		WP_CLI::confirm( sprintf( 'Remove dmg/read-more from %d post(s)?', $count ), $assoc_args );
 
 		$processed = 0;
-		foreach ( $post_ids as $post_id ) {
-			$post = get_post( (int) $post_id );
-			if ( ! $post ) {
-				continue;
+		$last_id   = 0;
+
+		$filter_blocks = function ( array $blocks ) use ( &$filter_blocks ): array {
+			$out = [];
+			foreach ( $blocks as $block ) {
+				if ( 'dmg/read-more' === ( $block['blockName'] ?? null ) ) {
+					continue;
+				}
+				if ( ! empty( $block['innerBlocks'] ) ) {
+					$block['innerBlocks'] = $filter_blocks( $block['innerBlocks'] );
+				}
+				$out[] = $block;
+			}
+			return $out;
+		};
+
+		do {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT post_id FROM {$table} WHERE post_id > %d ORDER BY post_id ASC LIMIT %d",
+					$last_id,
+					$chunk
+				)
+			);
+			// phpcs:enable
+
+			if ( $wpdb->last_error ) {
+				WP_CLI::error( $wpdb->last_error );
 			}
 
-			$blocks   = parse_blocks( $post->post_content );
-			$filtered = array_values( array_filter( $blocks, fn( $b ) => 'dmg/read-more' !== $b['blockName'] ) );
-			$updated  = implode( '', array_map( 'serialize_block', $filtered ) );
+			if ( ! empty( $ids ) ) {
+				$last_id = (int) end( $ids );
+			}
 
-			wp_update_post(
-				[
-					'ID'           => (int) $post_id,
-					'post_content' => $updated,
-				]
-			);
+			foreach ( $ids as $post_id ) {
+				$post = get_post( (int) $post_id );
+				if ( ! $post ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+					$wpdb->delete( $table, [ 'post_id' => $post_id ], [ '%d' ] );
+					continue;
+				}
 
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->delete( $table, [ 'post_id' => $post_id ], [ '%d' ] );
+				$updated = implode( '', array_map( 'serialize_block', $filter_blocks( parse_blocks( $post->post_content ) ) ) );
 
-			++$processed;
-			WP_CLI::debug( sprintf( 'Processed post %d', $post_id ), 'dmg-read-more' );
-		}
+				wp_update_post(
+					[
+						'ID'           => (int) $post_id,
+						'post_content' => $updated,
+					]
+				);
+
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->delete( $table, [ 'post_id' => $post_id ], [ '%d' ] );
+
+				++$processed;
+				WP_CLI::debug( sprintf( 'Processed post %d', $post_id ), 'dmg-read-more' );
+			}
+
+			$wpdb->flush();
+			\WP_CLI\Utils\wp_clear_object_cache();
+
+			$fetched = count( $ids );
+		} while ( $fetched === $chunk );
 
 		WP_CLI::success( sprintf( 'Removed dmg/read-more from %d post(s).', $processed ) );
 	}
@@ -795,15 +851,14 @@ class DMG_Read_More_CLI {
 
 		global $wpdb;
 		$table = $wpdb->prefix . 'dmg_read_more_index';
+		$chunk = 100;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$post_ids = $wpdb->get_col( "SELECT post_id FROM {$table} ORDER BY post_id ASC" );
+		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
 
 		if ( $wpdb->last_error ) {
 			WP_CLI::error( $wpdb->last_error );
 		}
-
-		$count = count( $post_ids );
 
 		if ( 0 === $count ) {
 			WP_CLI::success( 'No posts contain the dmg/read-more block.' );
@@ -812,46 +867,96 @@ class DMG_Read_More_CLI {
 
 		if ( $dry_run ) {
 			WP_CLI::log( sprintf( 'Dry run: dmg/read-more would be replaced with %s in %d post(s).', $new_block, $count ) );
-			foreach ( $post_ids as $post_id ) {
-				WP_CLI::line( (string) $post_id );
-			}
+			$last_id = 0;
+			do {
+				// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$ids = $wpdb->get_col(
+					$wpdb->prepare(
+						"SELECT post_id FROM {$table} WHERE post_id > %d ORDER BY post_id ASC LIMIT %d",
+						$last_id,
+						$chunk
+					)
+				);
+				// phpcs:enable
+				foreach ( $ids as $post_id ) {
+					WP_CLI::line( (string) $post_id );
+				}
+				if ( ! empty( $ids ) ) {
+					$last_id = (int) end( $ids );
+				}
+				$fetched = count( $ids );
+			} while ( $fetched === $chunk );
 			return;
 		}
 
 		WP_CLI::confirm( sprintf( 'Replace dmg/read-more with %s in %d post(s)?', $new_block, $count ), $assoc_args );
 
 		$processed = 0;
-		foreach ( $post_ids as $post_id ) {
-			$post = get_post( (int) $post_id );
-			if ( ! $post ) {
-				continue;
-			}
+		$last_id   = 0;
 
-			$blocks  = parse_blocks( $post->post_content );
-			$updated = array_map(
-				function ( array $block ) use ( $new_block ): array {
+		$remap_blocks = function ( array $blocks ) use ( &$remap_blocks, $new_block ): array {
+			return array_map(
+				function ( array $block ) use ( &$remap_blocks, $new_block ): array {
 					if ( 'dmg/read-more' === $block['blockName'] ) {
 						$block['blockName'] = $new_block;
+					}
+					if ( ! empty( $block['innerBlocks'] ) ) {
+						$block['innerBlocks'] = $remap_blocks( $block['innerBlocks'] );
 					}
 					return $block;
 				},
 				$blocks
 			);
-			$content = implode( '', array_map( 'serialize_block', $updated ) );
+		};
 
-			wp_update_post(
-				[
-					'ID'           => (int) $post_id,
-					'post_content' => $content,
-				]
+		do {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT post_id FROM {$table} WHERE post_id > %d ORDER BY post_id ASC LIMIT %d",
+					$last_id,
+					$chunk
+				)
 			);
+			// phpcs:enable
 
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->delete( $table, [ 'post_id' => $post_id ], [ '%d' ] );
+			if ( $wpdb->last_error ) {
+				WP_CLI::error( $wpdb->last_error );
+			}
 
-			++$processed;
-			WP_CLI::debug( sprintf( 'Processed post %d', $post_id ), 'dmg-read-more' );
-		}
+			if ( ! empty( $ids ) ) {
+				$last_id = (int) end( $ids );
+			}
+
+			foreach ( $ids as $post_id ) {
+				$post = get_post( (int) $post_id );
+				if ( ! $post ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+					$wpdb->delete( $table, [ 'post_id' => $post_id ], [ '%d' ] );
+					continue;
+				}
+
+				$content = implode( '', array_map( 'serialize_block', $remap_blocks( parse_blocks( $post->post_content ) ) ) );
+
+				wp_update_post(
+					[
+						'ID'           => (int) $post_id,
+						'post_content' => $content,
+					]
+				);
+
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->delete( $table, [ 'post_id' => $post_id ], [ '%d' ] );
+
+				++$processed;
+				WP_CLI::debug( sprintf( 'Processed post %d', $post_id ), 'dmg-read-more' );
+			}
+
+			$wpdb->flush();
+			\WP_CLI\Utils\wp_clear_object_cache();
+
+			$fetched = count( $ids );
+		} while ( $fetched === $chunk );
 
 		WP_CLI::success( sprintf( 'Replaced dmg/read-more with %s in %d post(s).', $new_block, $processed ) );
 	}
@@ -868,6 +973,30 @@ class DMG_Read_More_CLI {
 			WP_CLI::error( $wpdb->last_error );
 		}
 		return $count;
+	}
+
+	/**
+	 * Returns the number of published posts containing the block for the current site.
+	 *
+	 * On VIP environments the index table is not used; a WP_Query search against
+	 * VIP Search (Elasticsearch) is used instead.
+	 */
+	private function get_block_count(): int {
+		if ( dmg_read_more_is_vip() ) {
+			$query = new \WP_Query(
+				[
+					'post_status'    => 'publish',
+					'post_type'      => 'any',
+					's'              => '<!-- wp:dmg/read-more',
+					'fields'         => 'ids',
+					'posts_per_page' => 1,
+					'paged'          => 1,
+				]
+			);
+			return (int) $query->found_posts;
+		}
+
+		return $this->get_index_count();
 	}
 
 	/**
