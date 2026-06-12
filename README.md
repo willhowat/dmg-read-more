@@ -149,7 +149,13 @@ wp dmg-read-more replace core/paragraph
 
 #### Multisite
 
-All commands accept a `--network` flag on multisite installs, which iterates over every site in the network:
+Without any flags, each command operates against the site WP-CLI is bootstrapped against. On multisite this is the primary site by default, or whichever site is selected via WP-CLI's global `--url` flag:
+
+```bash
+wp --url=site2.example.com dmg-read-more audit
+```
+
+All commands also accept a `--network` flag, which iterates over every site in the network:
 
 ```bash
 wp dmg-read-more migrate  --network
