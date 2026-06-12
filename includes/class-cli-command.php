@@ -563,6 +563,293 @@ class DMG_Read_More_CLI {
 	}
 
 	/**
+	 * Show the number of published posts containing the dmg/read-more block.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--network]
+	 * : Show counts for every site in the network (multisite only).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     # Count on the current site
+	 *     wp dmg-read-more audit
+	 *
+	 *     # Count on every site in the network
+	 *     wp dmg-read-more audit --network
+	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Named arguments.
+	 */
+	public function audit( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		$this->maybe_warn_network_single_site( $assoc_args );
+
+		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
+			$rows = [];
+			$this->iterate_network(
+				function ( int $site_id ) use ( &$rows ) {
+					if ( ! $this->table_exists() ) {
+						WP_CLI::warning( sprintf( 'Site %d: index table not found, skipping.', $site_id ) );
+						return;
+					}
+					$rows[] = [
+						'site_id' => $site_id,
+						'posts'   => $this->get_index_count(),
+					];
+				}
+			);
+
+			if ( empty( $rows ) ) {
+				WP_CLI::success( 'No index data found across the network.' );
+				return;
+			}
+
+			\WP_CLI\Utils\format_items( 'table', $rows, [ 'site_id', 'posts' ] );
+			return;
+		}
+
+		if ( ! $this->table_exists() ) {
+			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` then `wp dmg-read-more backfill` first.' );
+		}
+
+		WP_CLI::success( sprintf( '%d post(s) contain the dmg/read-more block.', $this->get_index_count() ) );
+	}
+
+	/**
+	 * Remove the dmg/read-more block from all posts that contain it.
+	 *
+	 * Uses parse_blocks/serialize_block for safe block-level removal. Updates
+	 * post_content and removes the post from the index.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--dry-run]
+	 * : List affected posts without making any changes.
+	 *
+	 * [--network]
+	 * : Run on all sites in the network (multisite only).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     # Preview what would be changed
+	 *     wp dmg-read-more remove --dry-run
+	 *
+	 *     # Remove from all posts (prompts for confirmation)
+	 *     wp dmg-read-more remove
+	 *
+	 *     # Remove across the network without prompting
+	 *     wp dmg-read-more remove --network --yes
+	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Named arguments.
+	 */
+	public function remove( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		$this->maybe_warn_network_single_site( $assoc_args );
+
+		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
+			$this->iterate_network( fn() => $this->run_remove( $assoc_args ) );
+			return;
+		}
+
+		$this->run_remove( $assoc_args );
+	}
+
+	/**
+	 * Replace the dmg/read-more block with another block in all posts that contain it.
+	 *
+	 * Swaps the block name using parse_blocks/serialize_block; attributes are preserved.
+	 * Removes the old index entries (the new block is not tracked by this index).
+	 *
+	 * ## OPTIONS
+	 *
+	 * <new-block>
+	 * : The namespaced block name to replace dmg/read-more with, e.g. core/paragraph.
+	 *
+	 * [--dry-run]
+	 * : List affected posts without making any changes.
+	 *
+	 * [--network]
+	 * : Run on all sites in the network (multisite only).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     # Preview what would be changed
+	 *     wp dmg-read-more replace core/paragraph --dry-run
+	 *
+	 *     # Replace in all posts (prompts for confirmation)
+	 *     wp dmg-read-more replace core/paragraph
+	 *
+	 *     # Replace across the network without prompting
+	 *     wp dmg-read-more replace core/paragraph --network --yes
+	 *
+	 * @param array $args       Positional arguments.
+	 * @param array $assoc_args Named arguments.
+	 */
+	public function replace( array $args, array $assoc_args ): void {
+		if ( empty( $args[0] ) || strpos( $args[0], '/' ) === false ) {
+			WP_CLI::error( 'Provide a namespaced block name as the first argument, e.g. core/paragraph.' );
+		}
+
+		$new_block = $args[0];
+
+		$this->maybe_warn_network_single_site( $assoc_args );
+
+		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
+			$this->iterate_network( fn() => $this->run_replace( $new_block, $assoc_args ) );
+			return;
+		}
+
+		$this->run_replace( $new_block, $assoc_args );
+	}
+
+	/**
+	 * Removes all dmg/read-more blocks from post content on the current site.
+	 *
+	 * @param array $assoc_args WP-CLI named arguments (used for --dry-run and --yes).
+	 */
+	private function run_remove( array $assoc_args ): void {
+		if ( ! $this->table_exists() ) {
+			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` then `wp dmg-read-more backfill` first.' );
+		}
+
+		$dry_run = ! empty( $assoc_args['dry-run'] );
+
+		global $wpdb;
+		$table = $wpdb->prefix . 'dmg_read_more_index';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$post_ids = $wpdb->get_col( "SELECT post_id FROM {$table} ORDER BY post_id ASC" );
+
+		if ( $wpdb->last_error ) {
+			WP_CLI::error( $wpdb->last_error );
+		}
+
+		$count = count( $post_ids );
+
+		if ( 0 === $count ) {
+			WP_CLI::success( 'No posts contain the dmg/read-more block.' );
+			return;
+		}
+
+		if ( $dry_run ) {
+			WP_CLI::log( sprintf( 'Dry run: %d post(s) would have dmg/read-more removed.', $count ) );
+			foreach ( $post_ids as $post_id ) {
+				WP_CLI::line( (string) $post_id );
+			}
+			return;
+		}
+
+		WP_CLI::confirm( sprintf( 'Remove dmg/read-more from %d post(s)?', $count ), $assoc_args );
+
+		$processed = 0;
+		foreach ( $post_ids as $post_id ) {
+			$post = get_post( (int) $post_id );
+			if ( ! $post ) {
+				continue;
+			}
+
+			$blocks   = parse_blocks( $post->post_content );
+			$filtered = array_values( array_filter( $blocks, fn( $b ) => $b['blockName'] !== 'dmg/read-more' ) );
+			$updated  = implode( '', array_map( 'serialize_block', $filtered ) );
+
+			wp_update_post( [ 'ID' => (int) $post_id, 'post_content' => $updated ] );
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->delete( $table, [ 'post_id' => $post_id ], [ '%d' ] );
+
+			++$processed;
+			WP_CLI::debug( sprintf( 'Processed post %d', $post_id ), 'dmg-read-more' );
+		}
+
+		WP_CLI::success( sprintf( 'Removed dmg/read-more from %d post(s).', $processed ) );
+	}
+
+	/**
+	 * Replaces all dmg/read-more blocks with another block on the current site.
+	 *
+	 * @param string $new_block  The replacement block name.
+	 * @param array  $assoc_args WP-CLI named arguments (used for --dry-run and --yes).
+	 */
+	private function run_replace( string $new_block, array $assoc_args ): void {
+		if ( ! $this->table_exists() ) {
+			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` then `wp dmg-read-more backfill` first.' );
+		}
+
+		$dry_run = ! empty( $assoc_args['dry-run'] );
+
+		global $wpdb;
+		$table = $wpdb->prefix . 'dmg_read_more_index';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$post_ids = $wpdb->get_col( "SELECT post_id FROM {$table} ORDER BY post_id ASC" );
+
+		if ( $wpdb->last_error ) {
+			WP_CLI::error( $wpdb->last_error );
+		}
+
+		$count = count( $post_ids );
+
+		if ( 0 === $count ) {
+			WP_CLI::success( 'No posts contain the dmg/read-more block.' );
+			return;
+		}
+
+		if ( $dry_run ) {
+			WP_CLI::log( sprintf( 'Dry run: dmg/read-more would be replaced with %s in %d post(s).', $new_block, $count ) );
+			foreach ( $post_ids as $post_id ) {
+				WP_CLI::line( (string) $post_id );
+			}
+			return;
+		}
+
+		WP_CLI::confirm( sprintf( 'Replace dmg/read-more with %s in %d post(s)?', $new_block, $count ), $assoc_args );
+
+		$processed = 0;
+		foreach ( $post_ids as $post_id ) {
+			$post = get_post( (int) $post_id );
+			if ( ! $post ) {
+				continue;
+			}
+
+			$blocks  = parse_blocks( $post->post_content );
+			$updated = array_map(
+				function ( array $block ) use ( $new_block ): array {
+					if ( $block['blockName'] === 'dmg/read-more' ) {
+						$block['blockName'] = $new_block;
+					}
+					return $block;
+				},
+				$blocks
+			);
+			$content = implode( '', array_map( 'serialize_block', $updated ) );
+
+			wp_update_post( [ 'ID' => (int) $post_id, 'post_content' => $content ] );
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->delete( $table, [ 'post_id' => $post_id ], [ '%d' ] );
+
+			++$processed;
+			WP_CLI::debug( sprintf( 'Processed post %d', $post_id ), 'dmg-read-more' );
+		}
+
+		WP_CLI::success( sprintf( 'Replaced dmg/read-more with %s in %d post(s).', $new_block, $processed ) );
+	}
+
+	/**
+	 * Returns the number of posts in the index table for the current site.
+	 */
+	private function get_index_count(): int {
+		global $wpdb;
+		$table = $wpdb->prefix . 'dmg_read_more_index';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		if ( $wpdb->last_error ) {
+			WP_CLI::error( $wpdb->last_error );
+		}
+		return $count;
+	}
+
+	/**
 	 * Iterates over all sites in the network, switching context for each.
 	 *
 	 * restore_current_blog() is guaranteed via finally even if the callback errors.
