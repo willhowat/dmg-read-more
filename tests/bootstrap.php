@@ -40,10 +40,14 @@ namespace {
 		/** @var string[] */
 		public static array $errors = [];
 
+		/** @var string[] */
+		public static array $warnings = [];
+
 		public static function reset(): void {
-			self::$lines   = [];
-			self::$success = [];
-			self::$errors  = [];
+			self::$lines    = [];
+			self::$success  = [];
+			self::$errors   = [];
+			self::$warnings = [];
 		}
 
 		public static function line( string $message ): void {
@@ -58,6 +62,10 @@ namespace {
 		public static function error( string $message ): never {
 			self::$errors[] = $message;
 			throw new WP_CLI_Exception( $message );
+		}
+
+		public static function warning( string $message ): void {
+			self::$warnings[] = $message;
 		}
 
 		public static function debug( string $message, string $group = '' ): void {}
@@ -140,6 +148,18 @@ namespace {
 	function get_post_types(): array {
 		return [];
 	}
+
+	function is_multisite(): bool {
+		return false;
+	}
+
+	function get_sites( array $args = [] ): array {
+		return [];
+	}
+
+	function switch_to_blog( int $id ): void {}
+
+	function restore_current_blog(): void {}
 
 	require_once dirname( __DIR__ ) . '/includes/interface-block-search-strategy.php';
 	require_once dirname( __DIR__ ) . '/includes/class-index-table-strategy.php';

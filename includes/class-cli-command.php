@@ -70,13 +70,21 @@ class DMG_Read_More_CLI {
 	 * Once created, new and updated posts are indexed automatically via save_post.
 	 * Run `wp dmg-read-more backfill` afterwards to index existing posts.
 	 *
+	 * ## OPTIONS
+	 *
+	 * [--network]
+	 * : Run on all sites in the network (multisite only).
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     # Create the index table (run once on first deployment)
 	 *     wp dmg-read-more migrate
 	 *
+	 *     # Create the index table on every site in the network
+	 *     wp dmg-read-more migrate --network
+	 *
 	 * @param array $args       Positional arguments (unused).
-	 * @param array $assoc_args Named arguments (unused).
+	 * @param array $assoc_args Named arguments.
 	 */
 	public function migrate( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
 		if ( dmg_read_more_is_vip() ) {
@@ -84,6 +92,242 @@ class DMG_Read_More_CLI {
 			return;
 		}
 
+		$this->maybe_warn_network_single_site( $assoc_args );
+
+		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
+			$this->iterate_network( fn() => $this->run_migrate() );
+			return;
+		}
+
+		$this->run_migrate();
+	}
+
+	/**
+	 * Seed the index table from existing published posts.
+	 *
+	 * Performs a one-time chunked scan of wp_posts to populate the index for historical
+	 * data. Safe to re-run — uses INSERT IGNORE so duplicate entries are skipped.
+	 * After this runs, ongoing maintenance is handled automatically by save_post.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--network]
+	 * : Run on all sites in the network (multisite only).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     # Seed the index from existing posts (run once after migrate)
+	 *     wp dmg-read-more backfill
+	 *
+	 *     # Seed the index on every site in the network
+	 *     wp dmg-read-more backfill --network
+	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Named arguments.
+	 */
+	public function backfill( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		if ( dmg_read_more_is_vip() ) {
+			WP_CLI::log( 'Not required in VIP environments — the index table is not used.' );
+			return;
+		}
+
+		$this->maybe_warn_network_single_site( $assoc_args );
+
+		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
+			$this->iterate_network( fn() => $this->run_backfill() );
+			return;
+		}
+
+		$this->run_backfill();
+	}
+
+	/**
+	 * Reconcile the index against the current state of wp_posts.
+	 *
+	 * Removes stale entries (block removed or post unpublished while the plugin was
+	 * inactive) and adds missing entries (posts not yet in the index). Safe to re-run.
+	 * Recommended after any period of plugin deactivation.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--network]
+	 * : Run on all sites in the network (multisite only).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     # Resync after the plugin was deactivated
+	 *     wp dmg-read-more sync
+	 *
+	 *     # Resync on every site in the network
+	 *     wp dmg-read-more sync --network
+	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Named arguments.
+	 */
+	public function sync( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		if ( dmg_read_more_is_vip() ) {
+			WP_CLI::log( 'Not required in VIP environments — the index table is not used.' );
+			return;
+		}
+
+		$this->maybe_warn_network_single_site( $assoc_args );
+
+		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
+			$this->iterate_network( fn() => $this->run_sync() );
+			return;
+		}
+
+		$this->run_sync();
+	}
+
+	/**
+	 * Find published posts that contain the dmg/read-more block.
+	 *
+	 * Queries the index table for O(matching posts) performance. Requires
+	 * `wp dmg-read-more migrate` and `wp dmg-read-more backfill` to have run first.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--date-after=<date>]
+	 * : ISO 8601 date. Only return posts published on or after this date. Defaults to 30 days ago.
+	 *
+	 * [--date-before=<date>]
+	 * : ISO 8601 date. Only return posts published on or before this date. Defaults to today.
+	 *
+	 * [--post-type=<slug>]
+	 * : Comma-separated post type slugs to restrict results. Defaults to all post types.
+	 *
+	 * [--format=<format>]
+	 * : Output format. Accepts: ids, count. Default: ids.
+	 * ---
+	 * default: ids
+	 * options:
+	 *   - ids
+	 *   - count
+	 * ---
+	 *
+	 * [--network]
+	 * : Search all sites in the network (multisite only). IDs are prefixed with site_id:.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     # Search posts from the last 30 days (default date range)
+	 *     wp dmg-read-more search
+	 *
+	 *     # Search within a specific date range
+	 *     wp dmg-read-more search --date-after=2024-01-01 --date-before=2024-06-01
+	 *
+	 *     # Restrict results to specific post types
+	 *     wp dmg-read-more search --post-type=post,page
+	 *
+	 *     # Combine date range and post type filters
+	 *     wp dmg-read-more search --date-after=2024-01-01 --post-type=post
+	 *
+	 *     # Output only the count (useful for monitoring)
+	 *     wp dmg-read-more search --format=count
+	 *
+	 *     # Search across all sites in the network
+	 *     wp dmg-read-more search --network
+	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Named arguments.
+	 */
+	public function search( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+		if ( ! dmg_read_more_is_vip() && ! $this->table_exists() ) {
+			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` then `wp dmg-read-more backfill` first.' );
+		}
+
+		$date_after  = $assoc_args['date-after'] ?? wp_date( 'Y-m-d', strtotime( '-30 days' ) );
+		$date_before = $assoc_args['date-before'] ?? wp_date( 'Y-m-d' );
+
+		if ( ! $this->is_valid_date( $date_after ) ) {
+			WP_CLI::error( sprintf( 'Invalid --date-after value: "%s". Expected ISO 8601 (YYYY-MM-DD).', $date_after ) );
+		}
+
+		if ( ! $this->is_valid_date( $date_before ) ) {
+			WP_CLI::error( sprintf( 'Invalid --date-before value: "%s". Expected ISO 8601 (YYYY-MM-DD).', $date_before ) );
+		}
+
+		$format = $assoc_args['format'] ?? 'ids';
+
+		if ( ! in_array( $format, [ 'ids', 'count' ], true ) ) {
+			WP_CLI::error( sprintf( 'Invalid --format value: "%s". Accepted values: ids, count.', $format ) );
+		}
+
+		$post_types = [];
+		if ( ! empty( $assoc_args['post-type'] ) ) {
+			$requested  = array_values(
+				array_filter( array_map( 'sanitize_key', explode( ',', $assoc_args['post-type'] ) ) )
+			);
+			$registered = get_post_types();
+			$unknown    = array_diff( $requested, array_keys( $registered ) );
+			foreach ( $unknown as $slug ) {
+				WP_CLI::warning( sprintf( 'Unknown post type: "%s" — it will be ignored.', $slug ) );
+			}
+			$post_types = array_values( array_diff( $requested, $unknown ) );
+			if ( ! empty( $requested ) && empty( $post_types ) ) {
+				WP_CLI::error( 'All supplied --post-type values are unrecognised. Aborting.' );
+			}
+		}
+
+		$this->maybe_warn_network_single_site( $assoc_args );
+
+		if ( ! empty( $assoc_args['network'] ) && is_multisite() ) {
+			$grand_total = 0;
+			$this->iterate_network(
+				function ( int $site_id ) use ( $date_after, $date_before, $post_types, $format, &$grand_total ) {
+					if ( ! dmg_read_more_is_vip() && ! $this->table_exists() ) {
+						WP_CLI::warning( sprintf( 'Site %d: index table not found, skipping.', $site_id ) );
+						return;
+					}
+					$ids          = $this->search_strategy->search( $date_after, $date_before, $post_types );
+					$grand_total += count( $ids );
+					if ( 'ids' === $format ) {
+						foreach ( $ids as $post_id ) {
+							WP_CLI::line( $site_id . ':' . $post_id );
+						}
+					}
+				}
+			);
+
+			if ( 'count' === $format ) {
+				WP_CLI::line( (string) $grand_total );
+				return;
+			}
+
+			if ( 0 === $grand_total ) {
+				WP_CLI::success( 'No matching posts found.' );
+				return;
+			}
+
+			WP_CLI::success( sprintf( 'Found %d matching post(s).', $grand_total ) );
+			return;
+		}
+
+		$ids   = $this->search_strategy->search( $date_after, $date_before, $post_types );
+		$total = count( $ids );
+
+		if ( 'count' === $format ) {
+			WP_CLI::line( (string) $total );
+			return;
+		}
+
+		foreach ( $ids as $post_id ) {
+			WP_CLI::line( (string) $post_id );
+		}
+
+		if ( 0 === $total ) {
+			WP_CLI::success( 'No matching posts found.' );
+			return;
+		}
+
+		WP_CLI::success( sprintf( 'Found %d matching post(s).', $total ) );
+	}
+
+	/**
+	 * Creates the index table for the current site.
+	 */
+	private function run_migrate(): void {
 		if ( $this->table_exists() ) {
 			WP_CLI::success( 'Index table already exists, nothing to do.' );
 			return;
@@ -110,26 +354,9 @@ class DMG_Read_More_CLI {
 	}
 
 	/**
-	 * Seed the index table from existing published posts.
-	 *
-	 * Performs a one-time chunked scan of wp_posts to populate the index for historical
-	 * data. Safe to re-run — uses INSERT IGNORE so duplicate entries are skipped.
-	 * After this runs, ongoing maintenance is handled automatically by save_post.
-	 *
-	 * ## EXAMPLES
-	 *
-	 *     # Seed the index from existing posts (run once after migrate)
-	 *     wp dmg-read-more backfill
-	 *
-	 * @param array $args       Positional arguments (unused).
-	 * @param array $assoc_args Named arguments (unused).
+	 * Seeds the index table from existing published posts for the current site.
 	 */
-	public function backfill( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
-		if ( dmg_read_more_is_vip() ) {
-			WP_CLI::log( 'Not required in VIP environments — the index table is not used.' );
-			return;
-		}
-
+	private function run_backfill(): void {
 		if ( ! $this->table_exists() ) {
 			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` first.' );
 		}
@@ -199,26 +426,9 @@ class DMG_Read_More_CLI {
 	}
 
 	/**
-	 * Reconcile the index against the current state of wp_posts.
-	 *
-	 * Removes stale entries (block removed or post unpublished while the plugin was
-	 * inactive) and adds missing entries (posts not yet in the index). Safe to re-run.
-	 * Recommended after any period of plugin deactivation.
-	 *
-	 * ## EXAMPLES
-	 *
-	 *     # Resync after the plugin was deactivated
-	 *     wp dmg-read-more sync
-	 *
-	 * @param array $args       Positional arguments (unused).
-	 * @param array $assoc_args Named arguments (unused).
+	 * Reconciles the index table against wp_posts for the current site.
 	 */
-	public function sync( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
-		if ( dmg_read_more_is_vip() ) {
-			WP_CLI::log( 'Not required in VIP environments — the index table is not used.' );
-			return;
-		}
-
+	private function run_sync(): void {
 		if ( ! $this->table_exists() ) {
 			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` first.' );
 		}
@@ -353,107 +563,34 @@ class DMG_Read_More_CLI {
 	}
 
 	/**
-	 * Find published posts that contain the dmg/read-more block.
+	 * Iterates over all sites in the network, switching context for each.
 	 *
-	 * Queries the index table for O(matching posts) performance. Requires
-	 * `wp dmg-read-more migrate` and `wp dmg-read-more backfill` to have run first.
+	 * restore_current_blog() is guaranteed via finally even if the callback errors.
 	 *
-	 * ## OPTIONS
-	 *
-	 * [--date-after=<date>]
-	 * : ISO 8601 date. Only return posts published on or after this date. Defaults to 30 days ago.
-	 *
-	 * [--date-before=<date>]
-	 * : ISO 8601 date. Only return posts published on or before this date. Defaults to today.
-	 *
-	 * [--post-type=<slug>]
-	 * : Comma-separated post type slugs to restrict results. Defaults to all post types.
-	 *
-	 * [--format=<format>]
-	 * : Output format. Accepts: ids, count. Default: ids.
-	 * ---
-	 * default: ids
-	 * options:
-	 *   - ids
-	 *   - count
-	 * ---
-	 *
-	 * ## EXAMPLES
-	 *
-	 *     # Search posts from the last 30 days (default date range)
-	 *     wp dmg-read-more search
-	 *
-	 *     # Search within a specific date range
-	 *     wp dmg-read-more search --date-after=2024-01-01 --date-before=2024-06-01
-	 *
-	 *     # Restrict results to specific post types
-	 *     wp dmg-read-more search --post-type=post,page
-	 *
-	 *     # Combine date range and post type filters
-	 *     wp dmg-read-more search --date-after=2024-01-01 --post-type=post
-	 *
-	 *     # Output only the count (useful for monitoring)
-	 *     wp dmg-read-more search --format=count
-	 *
-	 * @param array $args       Positional arguments (unused).
-	 * @param array $assoc_args Named arguments.
+	 * @param callable(int):void $callback Receives the integer site ID.
 	 */
-	public function search( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
-		if ( ! dmg_read_more_is_vip() && ! $this->table_exists() ) {
-			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` then `wp dmg-read-more backfill` first.' );
-		}
-
-		$date_after  = $assoc_args['date-after'] ?? wp_date( 'Y-m-d', strtotime( '-30 days' ) );
-		$date_before = $assoc_args['date-before'] ?? wp_date( 'Y-m-d' );
-
-		if ( ! $this->is_valid_date( $date_after ) ) {
-			WP_CLI::error( sprintf( 'Invalid --date-after value: "%s". Expected ISO 8601 (YYYY-MM-DD).', $date_after ) );
-		}
-
-		if ( ! $this->is_valid_date( $date_before ) ) {
-			WP_CLI::error( sprintf( 'Invalid --date-before value: "%s". Expected ISO 8601 (YYYY-MM-DD).', $date_before ) );
-		}
-
-		$format = $assoc_args['format'] ?? 'ids';
-
-		if ( ! in_array( $format, [ 'ids', 'count' ], true ) ) {
-			WP_CLI::error( sprintf( 'Invalid --format value: "%s". Accepted values: ids, count.', $format ) );
-		}
-
-		$post_types = [];
-		if ( ! empty( $assoc_args['post-type'] ) ) {
-			$requested  = array_values(
-				array_filter( array_map( 'sanitize_key', explode( ',', $assoc_args['post-type'] ) ) )
-			);
-			$registered = get_post_types();
-			$unknown    = array_diff( $requested, array_keys( $registered ) );
-			foreach ( $unknown as $slug ) {
-				WP_CLI::warning( sprintf( 'Unknown post type: "%s" — it will be ignored.', $slug ) );
-			}
-			$post_types = array_values( array_diff( $requested, $unknown ) );
-			if ( ! empty( $requested ) && empty( $post_types ) ) {
-				WP_CLI::error( 'All supplied --post-type values are unrecognised. Aborting.' );
+	private function iterate_network( callable $callback ): void {
+		$sites = get_sites( [ 'number' => 0, 'fields' => 'ids' ] );
+		foreach ( $sites as $site_id ) {
+			WP_CLI::log( sprintf( 'Processing site %d...', $site_id ) );
+			switch_to_blog( (int) $site_id );
+			try {
+				$callback( (int) $site_id );
+			} finally {
+				restore_current_blog();
 			}
 		}
+	}
 
-		$ids   = $this->search_strategy->search( $date_after, $date_before, $post_types );
-		$total = count( $ids );
-
-		if ( 'count' === $format ) {
-			WP_CLI::line( (string) $total );
-			return;
+	/**
+	 * Emits a warning when --network is passed on a single-site install.
+	 *
+	 * @param array $assoc_args WP-CLI named arguments.
+	 */
+	private function maybe_warn_network_single_site( array $assoc_args ): void {
+		if ( ! empty( $assoc_args['network'] ) && ! is_multisite() ) {
+			WP_CLI::warning( '--network has no effect on single-site installs.' );
 		}
-
-		foreach ( $ids as $post_id ) {
-			WP_CLI::line( (string) $post_id );
-		}
-
-		if ( 0 === $total ) {
-			WP_CLI::success( 'No matching posts found.' );
-			return;
-		}
-
-		WP_CLI::success( sprintf( 'Found %d matching post(s).', $total ) );
 	}
 
 	/**
