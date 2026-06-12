@@ -24,6 +24,11 @@ class DMG_VIP_Search_Strategy implements DMG_Block_Search_Strategy {
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @param string   $date_after  ISO 8601 date (YYYY-MM-DD), inclusive.
+	 * @param string   $date_before ISO 8601 date (YYYY-MM-DD), inclusive.
+	 * @param string[] $post_types  Post type slugs to restrict results. Empty means all types.
+	 * @return int[]
 	 */
 	public function search( string $date_after, string $date_before, array $post_types = [] ): array {
 		$results = [];
@@ -55,7 +60,7 @@ class DMG_VIP_Search_Strategy implements DMG_Block_Search_Strategy {
 				'dmg-read-more'
 			);
 
-			$page++;
+			++$page;
 			\WP_CLI\Utils\wp_clear_object_cache();
 		} while ( $page <= $query->max_num_pages );
 

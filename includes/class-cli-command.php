@@ -51,6 +51,8 @@ class DMG_Read_More_CLI {
 
 	/**
 	 * Search strategy resolved at construction time based on the runtime environment.
+	 *
+	 * @var DMG_Block_Search_Strategy
 	 */
 	private DMG_Block_Search_Strategy $search_strategy;
 
@@ -749,10 +751,15 @@ class DMG_Read_More_CLI {
 			}
 
 			$blocks   = parse_blocks( $post->post_content );
-			$filtered = array_values( array_filter( $blocks, fn( $b ) => $b['blockName'] !== 'dmg/read-more' ) );
+			$filtered = array_values( array_filter( $blocks, fn( $b ) => 'dmg/read-more' !== $b['blockName'] ) );
 			$updated  = implode( '', array_map( 'serialize_block', $filtered ) );
 
-			wp_update_post( [ 'ID' => (int) $post_id, 'post_content' => $updated ] );
+			wp_update_post(
+				[
+					'ID'           => (int) $post_id,
+					'post_content' => $updated,
+				]
+			);
 
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->delete( $table, [ 'post_id' => $post_id ], [ '%d' ] );
@@ -814,7 +821,7 @@ class DMG_Read_More_CLI {
 			$blocks  = parse_blocks( $post->post_content );
 			$updated = array_map(
 				function ( array $block ) use ( $new_block ): array {
-					if ( $block['blockName'] === 'dmg/read-more' ) {
+					if ( 'dmg/read-more' === $block['blockName'] ) {
 						$block['blockName'] = $new_block;
 					}
 					return $block;
@@ -823,7 +830,12 @@ class DMG_Read_More_CLI {
 			);
 			$content = implode( '', array_map( 'serialize_block', $updated ) );
 
-			wp_update_post( [ 'ID' => (int) $post_id, 'post_content' => $content ] );
+			wp_update_post(
+				[
+					'ID'           => (int) $post_id,
+					'post_content' => $content,
+				]
+			);
 
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->delete( $table, [ 'post_id' => $post_id ], [ '%d' ] );
@@ -852,12 +864,17 @@ class DMG_Read_More_CLI {
 	/**
 	 * Iterates over all sites in the network, switching context for each.
 	 *
-	 * restore_current_blog() is guaranteed via finally even if the callback errors.
+	 * Restoration of blog context is guaranteed via finally even if the callback errors.
 	 *
 	 * @param callable(int):void $callback Receives the integer site ID.
 	 */
 	private function iterate_network( callable $callback ): void {
-		$sites = get_sites( [ 'number' => 0, 'fields' => 'ids' ] );
+		$sites = get_sites(
+			[
+				'number' => 0,
+				'fields' => 'ids',
+			]
+		);
 		foreach ( $sites as $site_id ) {
 			WP_CLI::log( sprintf( 'Processing site %d...', $site_id ) );
 			switch_to_blog( (int) $site_id );
