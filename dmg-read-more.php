@@ -26,6 +26,9 @@ function dmg_read_more_is_vip(): bool {
 	return defined( 'WPCOM_IS_VIP_ENV' ) && WPCOM_IS_VIP_ENV;
 }
 
+require_once DMG_READ_MORE_PATH . 'includes/interface-block-search-strategy.php';
+require_once DMG_READ_MORE_PATH . 'includes/class-index-table-strategy.php';
+require_once DMG_READ_MORE_PATH . 'includes/class-vip-search-strategy.php';
 require_once DMG_READ_MORE_PATH . 'includes/class-cli-command.php';
 
 add_action(

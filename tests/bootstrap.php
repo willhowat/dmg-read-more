@@ -133,5 +133,16 @@ namespace {
 		}
 	}
 
+	function dmg_read_more_is_vip(): bool {
+		return false;
+	}
+
+	function get_post_types(): array {
+		return [];
+	}
+
+	require_once dirname( __DIR__ ) . '/includes/interface-block-search-strategy.php';
+	require_once dirname( __DIR__ ) . '/includes/class-index-table-strategy.php';
+	require_once dirname( __DIR__ ) . '/includes/class-vip-search-strategy.php';
 	require_once dirname( __DIR__ ) . '/includes/class-cli-command.php';
 }

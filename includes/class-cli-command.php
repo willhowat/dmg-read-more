@@ -50,6 +50,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 class DMG_Read_More_CLI {
 
 	/**
+	 * Search strategy resolved at construction time based on the runtime environment.
+	 */
+	private DMG_Block_Search_Strategy $search_strategy;
+
+	/**
+	 * Resolves the correct search strategy for the current environment.
+	 */
+	public function __construct() {
+		$this->search_strategy = dmg_read_more_is_vip()
+			? new DMG_VIP_Search_Strategy()
+			: new DMG_Index_Table_Strategy();
+	}
+
+	/**
 	 * Create the index table.
 	 *
 	 * Safe to re-run — does nothing if the table already exists.
@@ -65,6 +79,11 @@ class DMG_Read_More_CLI {
 	 * @param array $assoc_args Named arguments (unused).
 	 */
 	public function migrate( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		if ( dmg_read_more_is_vip() ) {
+			WP_CLI::log( 'Not required in VIP environments — the index table is not used.' );
+			return;
+		}
+
 		if ( $this->table_exists() ) {
 			WP_CLI::success( 'Index table already exists, nothing to do.' );
 			return;
@@ -106,6 +125,11 @@ class DMG_Read_More_CLI {
 	 * @param array $assoc_args Named arguments (unused).
 	 */
 	public function backfill( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		if ( dmg_read_more_is_vip() ) {
+			WP_CLI::log( 'Not required in VIP environments — the index table is not used.' );
+			return;
+		}
+
 		if ( ! $this->table_exists() ) {
 			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` first.' );
 		}
@@ -190,6 +214,11 @@ class DMG_Read_More_CLI {
 	 * @param array $assoc_args Named arguments (unused).
 	 */
 	public function sync( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		if ( dmg_read_more_is_vip() ) {
+			WP_CLI::log( 'Not required in VIP environments — the index table is not used.' );
+			return;
+		}
+
 		if ( ! $this->table_exists() ) {
 			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` first.' );
 		}
@@ -370,11 +399,9 @@ class DMG_Read_More_CLI {
 	 * @param array $assoc_args Named arguments.
 	 */
 	public function search( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
-		if ( ! $this->table_exists() ) {
+		if ( ! dmg_read_more_is_vip() && ! $this->table_exists() ) {
 			WP_CLI::error( 'Index table not found. Run `wp dmg-read-more migrate` then `wp dmg-read-more backfill` first.' );
 		}
-
-		global $wpdb;
 
 		$date_after  = $assoc_args['date-after'] ?? wp_date( 'Y-m-d', strtotime( '-30 days' ) );
 		$date_before = $assoc_args['date-before'] ?? wp_date( 'Y-m-d' );
@@ -409,66 +436,16 @@ class DMG_Read_More_CLI {
 			}
 		}
 
-		$table   = $wpdb->prefix . 'dmg_read_more_index';
-		$last_id = 0;
-		$chunk   = 100;
-		$total   = 0;
-		$fetched = 0;
-
-		// Build WHERE once; $last_id is the only value that changes per chunk.
-		$where         = "p.post_status = 'publish' AND p.post_date >= %s AND p.post_date < DATE_ADD(%s, INTERVAL 1 DAY) AND i.post_id > %d";
-		$static_params = [ $date_after, $date_before ];
-
-		if ( ! empty( $post_types ) ) {
-			$where .= ' AND p.post_type IN (' . implode( ',', array_fill( 0, count( $post_types ), '%s' ) ) . ')';
-		}
-
-		do {
-			$iter_params = array_merge( $static_params, [ $last_id ], $post_types, [ $chunk ] );
-
-			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$rows = $wpdb->get_col(
-				$wpdb->prepare(
-					"SELECT i.post_id
-					FROM {$table} i
-					INNER JOIN {$wpdb->posts} p ON p.ID = i.post_id
-					WHERE {$where}
-					ORDER BY i.post_id ASC
-					LIMIT %d",
-					...$iter_params
-				)
-			);
-			// phpcs:enable
-
-			if ( $wpdb->last_error ) {
-				WP_CLI::error( $wpdb->last_error );
-			}
-
-			foreach ( $rows as $post_id ) {
-				if ( 'ids' === $format ) {
-					WP_CLI::line( $post_id );
-				}
-				++$total;
-			}
-
-			if ( ! empty( $rows ) ) {
-				$last_id = (int) end( $rows );
-			}
-
-			WP_CLI::debug(
-				sprintf( 'Last ID %d — peak memory: %s', $last_id, size_format( memory_get_peak_usage( true ) ) ),
-				'dmg-read-more'
-			);
-
-			$wpdb->flush();
-			\WP_CLI\Utils\wp_clear_object_cache();
-
-			$fetched = count( $rows );
-		} while ( $fetched === $chunk );
+		$ids   = $this->search_strategy->search( $date_after, $date_before, $post_types );
+		$total = count( $ids );
 
 		if ( 'count' === $format ) {
 			WP_CLI::line( (string) $total );
 			return;
+		}
+
+		foreach ( $ids as $post_id ) {
+			WP_CLI::line( (string) $post_id );
 		}
 
 		if ( 0 === $total ) {
