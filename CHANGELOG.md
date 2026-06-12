@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-12
+
+### Added
+
+- Environment-aware search strategy — the CLI automatically uses the dedicated index table on standard WordPress and VIP Search (via `WP_Query`) on WordPress VIP environments; detected via the `WPCOM_IS_VIP_ENV` constant
+- `--network` flag on `migrate`, `backfill`, `sync`, `search`, and `audit` — iterates all sites on a multisite install using `switch_to_blog`, prefixing `search` output with `site_id:` to avoid ambiguity across the network
+- `wp dmg-read-more audit` — reports the number of published posts containing the block; on `--network` outputs a per-site table
+- `wp dmg-read-more remove` — removes all instances of the block from post content using `parse_blocks`/`serialize_block`; supports `--dry-run`, `--network`, and `--yes`
+- `wp dmg-read-more replace <new-block>` — replaces all instances of the block with a named target block, preserving attributes; supports `--dry-run`, `--network`, and `--yes`
+
+### Changed
+
+- `migrate`, `backfill`, and `sync` exit cleanly with an informational message on VIP environments where the index table is not required
+
 ## [1.0.0] - 2026-05-30
 
 ### Added

@@ -74,7 +74,9 @@ Theme authors can disable individual supports via `theme.json` to match their de
 
 ### WP-CLI
 
-The WP-CLI commands use a dedicated index table for performance at scale. The table must be created and seeded before `search` can be used.
+The WP-CLI commands use a dedicated index table for O(matching posts) performance at scale. The table must be created and seeded before `search` and `audit` can be used.
+
+On WordPress VIP environments (`WPCOM_IS_VIP_ENV`), `search` automatically uses VIP Search (Elasticsearch via `WP_Query`) instead of the index table. The `migrate`, `backfill`, and `sync` commands are not required on VIP and exit cleanly with an informational message.
 
 #### First-time setup
 
@@ -99,9 +101,6 @@ wp dmg-read-more search --date-after=2024-01-01 --date-before=2024-06-01
 # Restrict to specific post types
 wp dmg-read-more search --post-type=post,page
 
-# Combine filters
-wp dmg-read-more search --date-after=2024-01-01 --post-type=post
-
 # Output only the count (useful for monitoring)
 wp dmg-read-more search --format=count
 ```
@@ -117,6 +116,52 @@ wp dmg-read-more sync
 ```
 
 This removes entries for posts that no longer contain the block (or are no longer published) and adds entries for any posts that were missed.
+
+#### Audit
+
+Report how many published posts contain the block:
+
+```bash
+wp dmg-read-more audit
+```
+
+#### Deprecation commands
+
+Remove the block entirely from all posts that contain it:
+
+```bash
+# Preview what would change
+wp dmg-read-more remove --dry-run
+
+# Remove (prompts for confirmation)
+wp dmg-read-more remove
+```
+
+Replace the block with another block, preserving attributes:
+
+```bash
+# Preview what would change
+wp dmg-read-more replace core/paragraph --dry-run
+
+# Replace (prompts for confirmation)
+wp dmg-read-more replace core/paragraph
+```
+
+#### Multisite
+
+All commands accept a `--network` flag on multisite installs, which iterates over every site in the network:
+
+```bash
+wp dmg-read-more migrate  --network
+wp dmg-read-more backfill --network
+wp dmg-read-more sync     --network
+wp dmg-read-more audit    --network   # outputs a per-site table
+wp dmg-read-more search   --network   # prefixes IDs with site_id:
+wp dmg-read-more remove   --network --yes
+wp dmg-read-more replace core/paragraph --network --yes
+```
+
+Pass `--yes` alongside `--network` on destructive commands to skip the per-site confirmation prompt.
 
 ### Filters
 
