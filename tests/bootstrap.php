@@ -1,6 +1,13 @@
 <?php
 namespace WP_CLI\Utils {
 	function wp_clear_object_cache(): void {}
+
+	function format_items( string $format, array $items, array $fields ): void {
+		foreach ( $items as $item ) {
+			$values = array_map( fn( $f ) => (string) ( $item[ $f ] ?? '' ), $fields );
+			\WP_CLI::line( implode( ',', $values ) );
+		}
+	}
 }
 
 namespace {
@@ -20,6 +27,67 @@ namespace {
 
 	function sanitize_key( string $key ): string {
 		return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( $key ) );
+	}
+
+	function get_post_types(): array {
+		return [];
+	}
+
+	function get_post( int $id ): ?object {
+		return (object) [
+			'ID'           => $id,
+			'post_content' => '<!-- wp:dmg/read-more /-->',
+		];
+	}
+
+	function parse_blocks( string $content ): array {
+		if ( strpos( $content, '<!-- wp:dmg/read-more' ) !== false ) {
+			return [
+				[
+					'blockName'    => 'dmg/read-more',
+					'attrs'        => [],
+					'innerBlocks'  => [],
+					'innerHTML'    => '',
+					'innerContent' => [],
+				],
+			];
+		}
+		return [
+			[
+				'blockName'    => null,
+				'attrs'        => [],
+				'innerBlocks'  => [],
+				'innerHTML'    => $content,
+				'innerContent' => [ $content ],
+			],
+		];
+	}
+
+	function serialize_block( array $block ): string {
+		if ( null === $block['blockName'] ) {
+			return $block['innerHTML'];
+		}
+		return '<!-- wp:' . $block['blockName'] . ' /-->';
+	}
+
+	function wp_update_post( array $postarr ): int {
+		return $postarr['ID'];
+	}
+
+	function is_multisite(): bool {
+		return $GLOBALS['_dmg_test_is_multisite'] ?? false;
+	}
+
+	function get_sites( array $args = [] ): array {
+		return $GLOBALS['_dmg_test_sites'] ?? [];
+	}
+
+	function switch_to_blog( int $id ): void {}
+
+	function restore_current_blog(): void {}
+
+	function dmg_read_more_is_vip(): bool {
+		return $GLOBALS['_dmg_test_is_vip'] ?? false;
 	}
 
 	/**
@@ -68,6 +136,9 @@ namespace {
 			self::$warnings[] = $message;
 		}
 
+		/** Auto-confirms in tests; respects --yes in production via assoc_args. */
+		public static function confirm( string $message, array $assoc_args = [] ): void {}
+
 		public static function debug( string $message, string $group = '' ): void {}
 
 		public static function log( string $message ): void {}
@@ -76,8 +147,8 @@ namespace {
 	/**
 	 * Configurable wpdb stub.
 	 *
-	 * Set up query returns via set_table_exists(), set_get_col_sequence(),
-	 * and set_col_error() before calling the method under test.
+	 * Set up query returns via set_table_exists(), set_get_var_sequence(),
+	 * set_get_col_sequence(), and set_col_error() before calling the method under test.
 	 */
 	class Wpdb_Stub {
 		public string $prefix        = 'wp_';
@@ -89,12 +160,23 @@ namespace {
 		public array $prepare_calls = [];
 
 		private mixed $get_var_return   = null;
+		private array $get_var_sequence = [];
 		private array $get_col_sequence = [];
 		private bool  $col_error        = false;
 
 		/** Make table_exists() return true or false. */
 		public function set_table_exists( bool $exists ): void {
 			$this->get_var_return = $exists ? ( $this->prefix . 'dmg_read_more_index' ) : null;
+		}
+
+		/**
+		 * Supply an ordered list of values that get_var() should return on successive calls.
+		 * Takes precedence over the value set by set_table_exists() while the sequence is non-empty.
+		 *
+		 * @param array<mixed> $sequence
+		 */
+		public function set_get_var_sequence( array $sequence ): void {
+			$this->get_var_sequence = $sequence;
 		}
 
 		/**
@@ -113,6 +195,9 @@ namespace {
 		}
 
 		public function get_var( string $query ): mixed {
+			if ( ! empty( $this->get_var_sequence ) ) {
+				return array_shift( $this->get_var_sequence );
+			}
 			return $this->get_var_return;
 		}
 
@@ -134,32 +219,20 @@ namespace {
 
 		public function query( string $sql ): void {}
 
+		public function delete( string $table, array $where, array $format = [] ): int {
+			return 1;
+		}
+
 		public function flush(): void {}
 
 		public function esc_like( string $text ): string {
 			return $text;
 		}
+
+		public function get_charset_collate(): string {
+			return 'DEFAULT CHARACTER SET utf8mb4';
+		}
 	}
-
-	function dmg_read_more_is_vip(): bool {
-		return false;
-	}
-
-	function get_post_types(): array {
-		return [];
-	}
-
-	function is_multisite(): bool {
-		return false;
-	}
-
-	function get_sites( array $args = [] ): array {
-		return [];
-	}
-
-	function switch_to_blog( int $id ): void {}
-
-	function restore_current_blog(): void {}
 
 	require_once dirname( __DIR__ ) . '/includes/interface-block-search-strategy.php';
 	require_once dirname( __DIR__ ) . '/includes/class-index-table-strategy.php';
